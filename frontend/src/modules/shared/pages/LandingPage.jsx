@@ -12,7 +12,7 @@ import bikeImg from '@/assets/landing/bike.png';
 import heroBgImg from '@/assets/landing/hero-bg.png';
 import newHeroTaxiImg from '@/assets/ride-removebg-preview.png';
 import checkUsOutImg from '@/assets/check_us_out.jpg';
-import { Camera, PlayCircle, Share2, ArrowRight as ArrowRightIcon } from 'lucide-react';
+import { Camera, PlayCircle, Share2, Download } from 'lucide-react';
 
 function LandingPage() {
   const navigate = useNavigate();
@@ -20,6 +20,16 @@ function LandingPage() {
   const appName = settings.general?.app_name || 'easytaxi';
   const [activeTab, setActiveTab] = React.useState('home');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+  const appLinks = [
+    {
+      label: 'User App',
+      href: 'https://play.google.com/store/apps/details?id=com.rydon24.user',
+    },
+    {
+      label: 'Driver App',
+      href: 'https://play.google.com/store/apps/details?id=com.rydon24.driver',
+    },
+  ];
 
   // Custom logo rendering to match 'easytaxi' style (first part yellow, second part white)
   const renderLogo = () => {
@@ -143,7 +153,7 @@ function LandingPage() {
           </div>
 
           {/* Card 2 */}
-          <div className="sub-card grey">
+          <div className="sub-card yellow">
             <h3>BIKE RIDE</h3>
             <p>Beat the traffic and reach your destination faster with our quick and affordable bike taxi service.</p>
             <div className="sub-card-image">
@@ -152,7 +162,7 @@ function LandingPage() {
           </div>
 
           {/* Card 3 */}
-          <div className="sub-card grey">
+          <div className="sub-card yellow">
             <h3>PARCEL DELIVERY</h3>
             <p>Fast and reliable parcel delivery services to send packages across the city securely.</p>
             <div className="sub-card-image">
@@ -266,25 +276,20 @@ function LandingPage() {
               <a href="#" style={{ width: '50px', height: '50px', borderRadius: '50%', background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#333' }}><PlayCircle size={24} /></a>
               <a href="#" style={{ width: '50px', height: '50px', borderRadius: '50%', background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#333' }}><Share2 size={24} /></a>
             </div>
-            <button 
-              onClick={() => window.open('https://play.google.com/store/apps/details?id=com.rydon24.user', '_blank')}
-              style={{
-                background: '#FFB300',
-                color: '#1a1a1a',
-                border: 'none',
-                padding: '15px 35px',
-                borderRadius: '50px',
-                fontWeight: '800',
-                fontSize: '16px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                width: 'fit-content'
-              }}
-            >
-              Learn More <ArrowRightIcon size={20} />
-            </button>
+            <div className="check-us-out-links">
+              {appLinks.map((link, index) => (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`check-us-out-link ${index === 0 ? 'primary' : 'secondary'}`}
+                >
+                  <Download size={18} />
+                  <span>{link.label}</span>
+                </a>
+              ))}
+            </div>
           </div>
         </div>
       </section>

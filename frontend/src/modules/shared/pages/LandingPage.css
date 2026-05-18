@@ -498,6 +498,40 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
+.check-us-out-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.check-us-out-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  text-decoration: none;
+  border-radius: 999px;
+  padding: 0.95rem 1.5rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.check-us-out-link:hover {
+  transform: translateY(-2px);
+}
+
+.check-us-out-link.primary {
+  background: #FFB300;
+  color: #1a1a1a;
+  box-shadow: 0 12px 24px rgba(255, 179, 0, 0.28);
+}
+
+.check-us-out-link.secondary {
+  background: #1a1a1a;
+  color: #ffffff;
+  box-shadow: 0 12px 24px rgba(26, 26, 26, 0.18);
+}
+
 .benefits-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -899,6 +933,13 @@ body {
     width: 100%;
     min-width: 0;
   }
+  .check-us-out-links {
+    width: 100%;
+  }
+  .check-us-out-link {
+    justify-content: center;
+    width: 100%;
+  }
   .footer-newsletter-banner {
     flex-direction: column;
     margin-top: -40px;
@@ -979,7 +1020,8 @@ body {
   }
   .new-hero-login-btn,
   .landing-login-primary,
-  .landing-login-secondary {
+  .landing-login-secondary,
+  .check-us-out-link {
     width: 100%;
     justify-content: center;
   }
