@@ -180,20 +180,7 @@ const Signup = () => {
     setFormData({ ...formData, gender });
   };
 
-  const handleSkipForNow = async () => {
-    if (loading || photoUploading) {
-      return;
-    }
 
-    setFormData((prev) => ({ ...prev, profileImage: '' }));
-    setPhotoError('');
-
-    const fakeEvent = {
-      preventDefault() {},
-    };
-
-    await handleSignup(fakeEvent, { profileImage: '' });
-  };
 
   return (
     <AuthLayout
@@ -397,13 +384,13 @@ const Signup = () => {
 
           <div className="space-y-3">
              <label className="ml-1 text-xs font-bold uppercase tracking-widest text-slate-600">Gender</label>
-             <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
+             <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
                 {['Male', 'Female', 'Other'].map((g) => (
                     <button
                         key={g}
                         type="button"
                         onClick={() => handleGenderChange(g.toLowerCase())}
-                        className={`w-full flex-1 min-w-[80px] py-3 rounded-xl text-[13px] font-bold border-2 transition-all ${
+                        className={`w-full py-3 rounded-xl text-[13px] font-bold border-2 transition-all ${
                             formData.gender === g.toLowerCase() 
                             ? 'border-black bg-black text-white shadow-sm' 
                             : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
@@ -440,19 +427,11 @@ const Signup = () => {
 
           <button
             type="button"
-            onClick={handleSkipForNow}
-            className="w-full rounded-xl border border-slate-200 bg-white py-3.5 text-sm font-bold text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900"
-          >
-            Skip For Now
-          </button>
-
-          <button
-            type="button"
             onClick={() => navigate('/taxi/user/support')}
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3.5 text-sm font-bold text-slate-700 transition-colors hover:border-slate-300 hover:text-slate-900 flex items-center justify-center gap-2"
+            className="w-full py-3 text-sm font-bold text-slate-500 transition-colors hover:text-slate-900 flex items-center justify-center gap-2"
           >
             <LifeBuoy size={16} />
-            Need Help
+            Need Help?
           </button>
         </div>
 
