@@ -554,6 +554,128 @@ const DriverWallet = () => {
         }
     };
 
+    const handleUserStyleTopUp = async () => {
+        const amount = Number(topUpAmount);
+
+        if (!rules.walletEnabled) {
+            setError('Wallet is disabled by admin.');
+            return;
+        }
+
+        if (!Number.isFinite(amount) || amount <= 0) {
+            setError('Enter a valid top-up amount.');
+            return;
+        }
+
+        if (rules.minimumTopUp > 0 && amount < rules.minimumTopUp) {
+            setError(`Minimum top-up amount is Rs ${rules.minimumTopUp}.`);
+            return;
+        }
+
+        setProcessingTopUp(true);
+        setError('');
+
+        try {
+            if (!activePaymentGateway) {
+                throw new Error('No payment gateway is enabled by admin right now.');
+            }
+
+            if (!supportsWalletTopUp || walletTopUpMode !== 'razorpay_checkout') {
+                throw new Error(`${walletTopUpGatewayLabel} is enabled by admin, but this test flow needs Razorpay wallet top-up.`);
+            }
+
+            const scriptLoaded = await loadRazorpayScript();
+            if (!scriptLoaded) {
+                throw new Error('Razorpay SDK failed to load');
+            }
+
+            const orderResponse = await api.post('/drivers/wallet/top-up/razorpay/order', {
+                amount,
+            }, withDriverAuthorization());
+            const orderData = orderResponse?.data || orderResponse || {};
+
+            if (!orderData?.orderId || !orderData?.keyId) {
+                throw new Error('Unable to start payment');
+            }
+
+            let driverInfo = {};
+            try {
+                driverInfo = JSON.parse(localStorage.getItem('driverInfo') || '{}');
+            } catch {
+                driverInfo = {};
+            }
+
+            const driverPhone = driverInfo?.phone || driverInfo?.mobile || '';
+            const prefillContact = driverPhone
+                ? `+91${String(driverPhone).replace(/^\+?91/, '')}`
+                : '';
+
+            const rzp = new window.Razorpay({
+                key: orderData.keyId,
+                amount: orderData.amount,
+                currency: orderData.currency || 'INR',
+                name: appName,
+                description: 'Wallet Topup',
+                order_id: orderData.orderId,
+                prefill: {
+                    name: driverInfo?.name || driverInfo?.full_name || '',
+                    email: driverInfo?.email || '',
+                    contact: prefillContact,
+                },
+                modal: {
+                    ondismiss: () => {
+                        setProcessingTopUp(false);
+                    },
+                },
+                handler: async (response) => {
+                    try {
+                        const verifyResponse = await api.post('/drivers/wallet/top-up/razorpay/verify', {
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_signature: response.razorpay_signature,
+                        }, withDriverAuthorization());
+
+                        const result = verifyResponse?.data || verifyResponse || {};
+                        if (result?.wallet) {
+                            setWallet(result.wallet);
+                        }
+                        if (result?.transaction) {
+                            setTransactions((previous) => [
+                                result.transaction,
+                                ...previous.filter((item) => item._id !== result.transaction._id),
+                            ].slice(0, 50));
+                        }
+
+                        setTopUpSuccess(true);
+                        setTimeout(() => {
+                            setTopUpSuccess(false);
+                            setShowTopUp(false);
+                            setTopUpAmount('500');
+                        }, 1400);
+                    } catch (verifyError) {
+                        setError(verifyError?.message || 'Payment verification failed');
+                    } finally {
+                        setProcessingTopUp(false);
+                    }
+                },
+                theme: {
+                    color: '#E85D04',
+                },
+            });
+
+            rzp.on('payment.failed', (event) => {
+                const message = event?.error?.description || event?.error?.reason || 'Payment failed';
+                setError(message);
+                setProcessingTopUp(false);
+            });
+
+            rzp.open();
+        } catch (requestError) {
+            setError(requestError?.response?.data?.message || requestError?.message || 'Top-up request failed.');
+            setProcessingTopUp(false);
+        }
+    };
+
     const handleWithdrawRequest = async () => {
         const amount = Number(withdrawAmount);
 
@@ -730,6 +852,14 @@ const DriverWallet = () => {
                                     Withdraw <ArrowDownLeft size={17} />
                                 </button>
                             </div>
+                            <button
+                                type="button"
+                                onClick={handleUserStyleTopUp}
+                                disabled={processingTopUp || !rules.walletEnabled || walletTopUpMode !== 'razorpay_checkout'}
+                                className="mt-3 flex h-13 w-full items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 text-sm font-black uppercase tracking-[0.08em] text-emerald-800 shadow-sm disabled:border-slate-100 disabled:bg-slate-100 disabled:text-slate-400"
+                            >
+                                {processingTopUp ? <RefreshCw className="animate-spin" size={17} /> : 'Add money test'} <ArrowUpRight size={17} />
+                            </button>
                         </section>
 
                         {recentWithdrawalRequests.length > 0 && (
@@ -933,6 +1063,14 @@ const DriverWallet = () => {
                                         className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#101521] text-sm font-black uppercase tracking-widest text-white disabled:bg-slate-200 disabled:text-slate-400"
                                     >
                                         {processingTopUp ? <RefreshCw className="animate-spin" size={18} /> : 'Add money'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleUserStyleTopUp}
+                                        disabled={processingTopUp || !rules.walletEnabled || walletTopUpMode !== 'razorpay_checkout'}
+                                        className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 text-sm font-black uppercase tracking-widest text-emerald-800 disabled:border-slate-100 disabled:bg-slate-100 disabled:text-slate-400"
+                                    >
+                                        {processingTopUp ? <RefreshCw className="animate-spin" size={18} /> : 'Add money test'}
                                     </button>
                                 </div>
                             )}
