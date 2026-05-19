@@ -7,6 +7,7 @@ const withTimeout = (promise, timeoutMs = 1500) =>
   ]);
 
 const isAndroidWebView = () => {
+  if (globalThis.window?.__isRydon24WebView) return true;
   const ua = String(globalThis.navigator?.userAgent || '');
   // Standard Android WebView marker: "; wv)" in the user agent.
   if (/; wv\)/i.test(ua)) return true;
@@ -21,6 +22,15 @@ const isAndroidWebView = () => {
     return true;
   }
   return false;
+};
+
+export const convertToAndroidIntentUrl = (url) => {
+  try {
+    const hostAndPath = String(url || '').replace(/^https?:\/\//i, '');
+    return `intent://${hostAndPath}#Intent;scheme=https;end`;
+  } catch (e) {
+    return url;
+  }
 };
 
 const isAndroid = () => /Android/i.test(String(globalThis.navigator?.userAgent || ''));
@@ -213,6 +223,14 @@ const callNativeInterface = (targetUrl, checkoutPayload) => {
 
 const redirectInCurrentWindow = (targetUrl, status = 'browser-redirect') => {
   recordCheckoutDiagnostic({ status });
+  
+  if (isAndroidWebView() || globalThis.window?.__isRydon24WebView) {
+    const intentUrl = convertToAndroidIntentUrl(targetUrl);
+    recordCheckoutDiagnostic({ status: 'android-webview-intent-redirect', intentUrl });
+    globalThis.location.href = intentUrl;
+    return true;
+  }
+
   globalThis.location.href = targetUrl;
   return true;
 };

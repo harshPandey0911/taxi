@@ -416,8 +416,17 @@ const DriverWallet = () => {
             }, withDriverAuthorization());
             const orderData = orderResponse?.data || orderResponse;
 
-            if (!orderData?.orderId || !orderData?.keyId) {
+            if (!orderData?.orderId && !orderData?.checkoutUrl) {
                 throw new Error('Could not initiate payment. Please try again.');
+            }
+
+            if (orderData?.checkoutUrl) {
+                const opened = await openExternalCheckout(orderData.checkoutUrl);
+                if (!opened) {
+                    throw new Error('Razorpay checkout could not open outside the app WebView. Please update the app bridge or open this payment flow in your browser.');
+                }
+                setProcessingTopUp(false);
+                return;
             }
 
             let driverInfo = {};

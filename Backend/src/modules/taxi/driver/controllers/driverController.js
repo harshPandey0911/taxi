@@ -5825,6 +5825,61 @@ export const createDriverWalletTopupOrder = async (req, res) => {
   const compactDriverId = driverId.replace(/[^a-zA-Z0-9]/g, "").slice(-8) || "drv";
   const receipt = `dwal_${compactDriverId}_${Date.now().toString(36)}`;
 
+  // Build the callback URL that Razorpay will redirect to after payment.
+  const proto = req.get('x-forwarded-proto') || req.protocol || 'http';
+  const host = req.get('x-forwarded-host') || req.get('host') || 'localhost:5000';
+  const backendOrigin = `${proto}://${host}`;
+  const callbackUrl = `${backendOrigin}/api/v1/drivers/wallet/top-up/razorpay/callback`;
+
+  const userAgent = String(req.headers["user-agent"] || "");
+  const isWebView = /; wv\)/i.test(userAgent) || /Version\/[\d.]+/i.test(userAgent) || req.body.usePaymentLink === true;
+
+  if (isWebView) {
+    const driver = driverId ? await Driver.findById(driverId).select("name phone email").lean() : null;
+    const cleanedPhone = String(driver?.phone || "").replace(/\D/g, "");
+    const customerPhone = cleanedPhone.length === 10 ? `+91${cleanedPhone}` : (cleanedPhone.length === 12 && cleanedPhone.startsWith("91")) ? `+${cleanedPhone}` : "";
+
+    const paymentLink = await razorpayRequest({
+      method: "POST",
+      path: "/payment_links",
+      body: {
+        amount: amountPaise,
+        currency: "INR",
+        accept_partial: false,
+        expire_by: Math.floor(Date.now() / 1000) + 20 * 60,
+        reference_id: receipt,
+        description: "Driver Wallet Topup",
+        callback_url: callbackUrl,
+        callback_method: "get",
+        customer: {
+          name: driver?.name || "Driver",
+          email: driver?.email || "",
+          contact: customerPhone || undefined,
+        },
+        notes: {
+          driverId,
+          source: "driver_wallet_topup",
+        },
+      },
+      keyId,
+      keySecret,
+    });
+
+    const checkoutUrl = paymentLink.short_url || paymentLink.shortUrl || paymentLink.url;
+
+    res.status(201).json({
+      success: true,
+      data: {
+        keyId,
+        checkoutUrl,
+        amount: amountPaise,
+        currency: "INR",
+        callbackUrl,
+      },
+    });
+    return;
+  }
+
   const order = await fetchRazorpay({
     method: "POST",
     path: "/orders",
@@ -5837,14 +5892,6 @@ export const createDriverWalletTopupOrder = async (req, res) => {
     keyId,
     keySecret,
   });
-
-  // Build the callback URL that Razorpay will POST to after payment redirect.
-  // In production (behind a reverse proxy), the backend is at the same origin
-  // as the frontend. In development, we use the request's own protocol/host.
-  const proto = req.get('x-forwarded-proto') || req.protocol || 'http';
-  const host = req.get('x-forwarded-host') || req.get('host') || 'localhost:5000';
-  const backendOrigin = `${proto}://${host}`;
-  const callbackUrl = `${backendOrigin}/api/v1/drivers/wallet/top-up/razorpay/callback`;
 
   res.status(201).json({
     success: true,
