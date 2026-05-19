@@ -5833,31 +5833,131 @@ export const createDriverWalletTopupOrder = async (req, res) => {
   });
 };
 
+const verifyAndApplyDriverRazorpayWalletTopup = async ({
+  orderId,
+  paymentId,
+  signature,
+  driverId: requestedDriverId = "",
+} = {}) => {
+  const normalizedOrderId = String(orderId || "").trim();
+  const normalizedPaymentId = String(paymentId || "").trim();
+  const normalizedSignature = String(signature || "").trim();
+
+  if (!normalizedOrderId || !normalizedPaymentId || !normalizedSignature) {
+    throw new ApiError(400, "Payment verification fields are required");
+  }
+
+  const { keyId, keySecret } = await resolveRazorpayCredentials();
+
+  const expectedSignature = crypto
+    .createHmac("sha256", keySecret)
+    .update(`${normalizedOrderId}|${normalizedPaymentId}`)
+    .digest("hex");
+
+  if (expectedSignature !== normalizedSignature) {
+    throw new ApiError(400, "Invalid payment signature");
+  }
+
+  const order = await fetchRazorpay({
+    method: "GET",
+    path: `/orders/${encodeURIComponent(normalizedOrderId)}`,
+    keyId,
+    keySecret,
+  });
+
+  const amountPaise = Number(order?.amount);
+  if (!Number.isFinite(amountPaise) || amountPaise <= 0) {
+    throw new ApiError(400, "Invalid order amount");
+  }
+
+  const orderDriverId = String(order?.notes?.driverId || "").trim();
+  const effectiveDriverId = String(requestedDriverId || orderDriverId).trim();
+
+  if (!effectiveDriverId) {
+    throw new ApiError(400, "Driver reference is missing from this Razorpay order");
+  }
+
+  if (requestedDriverId && orderDriverId && requestedDriverId !== orderDriverId) {
+    throw new ApiError(403, "This Razorpay order does not belong to the authenticated driver");
+  }
+
+  const amount = Math.round(amountPaise) / 100;
+  const alreadyCredited = await WalletTransaction.findOne({
+    driverId: effectiveDriverId,
+    "metadata.providerPaymentId": normalizedPaymentId,
+  })
+    .select("_id")
+    .lean();
+
+  if (alreadyCredited) {
+    const driver = await Driver.findById(effectiveDriverId);
+    return {
+      driverId: effectiveDriverId,
+      wallet: driver ? await serializeDriverWallet(driver) : null,
+      transaction: null,
+      alreadyCredited: true,
+    };
+  }
+
+  const result = await topUpDriverWallet({
+    driverId: effectiveDriverId,
+    amount,
+    metadata: {
+      source: "razorpay",
+      provider: "razorpay",
+      providerOrderId: normalizedOrderId,
+      providerPaymentId: normalizedPaymentId,
+    },
+  });
+
+  const payload = {
+    wallet: result.wallet,
+    transaction: result.transaction,
+  };
+
+  emitToDriver(effectiveDriverId, "driver:wallet:updated", payload);
+
+  return {
+    driverId: effectiveDriverId,
+    ...payload,
+    alreadyCredited: false,
+  };
+};
+
 export const handleDriverRazorpayWalletTopupCallback = async (req, res) => {
   const frontendBaseUrl = getFrontendBaseUrl(req);
   const redirectUrl = new URL(`${frontendBaseUrl}/razorpay/status`);
   redirectUrl.searchParams.set("flow", "driver-wallet");
 
-  const fields = [
-    "razorpay_payment_id",
-    "razorpay_order_id",
-    "razorpay_signature",
-  ];
+  try {
+    const errorCode = String(req.body?.error?.code || req.body?.error?.reason || "").trim();
+    const errorDescription = String(req.body?.error?.description || "").trim();
 
-  for (const field of fields) {
-    const value = String(req.body?.[field] || "").trim();
-    if (value) {
-      redirectUrl.searchParams.set(field, value);
+    if (errorCode || errorDescription) {
+      redirectUrl.searchParams.set("status", "failure");
+      if (errorCode) {
+        redirectUrl.searchParams.set("error_code", errorCode);
+      }
+      if (errorDescription) {
+        redirectUrl.searchParams.set("error_description", errorDescription);
+      }
+      res.redirect(302, redirectUrl.toString());
+      return;
     }
-  }
 
-  const errorCode = String(req.body?.error?.code || req.body?.error?.reason || "").trim();
-  const errorDescription = String(req.body?.error?.description || "").trim();
-  if (errorCode) {
-    redirectUrl.searchParams.set("error_code", errorCode);
-  }
-  if (errorDescription) {
-    redirectUrl.searchParams.set("error_description", errorDescription);
+    await verifyAndApplyDriverRazorpayWalletTopup({
+      orderId: req.body?.razorpay_order_id,
+      paymentId: req.body?.razorpay_payment_id,
+      signature: req.body?.razorpay_signature,
+    });
+
+    redirectUrl.searchParams.set("status", "success");
+  } catch (error) {
+    redirectUrl.searchParams.set("status", "failure");
+    redirectUrl.searchParams.set(
+      "error_description",
+      String(error?.message || "Payment verification failed."),
+    );
   }
 
   res.redirect(302, redirectUrl.toString());
@@ -5954,79 +6054,19 @@ export const createDriverPhonePeWalletTopupOrder = async (req, res) => {
 };
 
 export const verifyDriverWalletTopup = async (req, res) => {
-  const orderId = String(req.body?.razorpay_order_id || "");
-  const paymentId = String(req.body?.razorpay_payment_id || "");
-  const signature = String(req.body?.razorpay_signature || "");
-
-  if (!orderId || !paymentId || !signature) {
-    throw new ApiError(400, "Payment verification fields are required");
-  }
-
-  const { keyId, keySecret } = await resolveRazorpayCredentials();
-
-  const expectedSignature = crypto
-    .createHmac("sha256", keySecret)
-    .update(`${orderId}|${paymentId}`)
-    .digest("hex");
-
-  if (expectedSignature !== signature) {
-    throw new ApiError(400, "Invalid payment signature");
-  }
-
-  const order = await fetchRazorpay({
-    method: "GET",
-    path: `/orders/${encodeURIComponent(orderId)}`,
-    keyId,
-    keySecret,
+  const payload = await verifyAndApplyDriverRazorpayWalletTopup({
+    orderId: req.body?.razorpay_order_id,
+    paymentId: req.body?.razorpay_payment_id,
+    signature: req.body?.razorpay_signature,
+    driverId: req.auth?.sub,
   });
-
-  const amountPaise = Number(order?.amount);
-  if (!Number.isFinite(amountPaise) || amountPaise <= 0) {
-    throw new ApiError(400, "Invalid order amount");
-  }
-
-  const amount = Math.round(amountPaise) / 100;
-  const driverId = req.auth?.sub;
-
-  const alreadyCredited = await WalletTransaction.findOne({
-    driverId,
-    "metadata.providerPaymentId": paymentId,
-  })
-    .select("_id")
-    .lean();
-
-  if (alreadyCredited) {
-    const driver = await Driver.findById(driverId);
-    res.json({
-      success: true,
-      data: {
-        wallet: await serializeDriverWallet(driver),
-      },
-    });
-    return;
-  }
-
-  const result = await topUpDriverWallet({
-    driverId,
-    amount,
-    metadata: {
-      source: "razorpay",
-      provider: "razorpay",
-      providerOrderId: orderId,
-      providerPaymentId: paymentId,
-    },
-  });
-
-  const payload = {
-    wallet: result.wallet,
-    transaction: result.transaction,
-  };
-
-  emitToDriver(driverId, "driver:wallet:updated", payload);
 
   res.json({
     success: true,
-    data: payload,
+    data: {
+      wallet: payload.wallet,
+      ...(payload.transaction ? { transaction: payload.transaction } : {}),
+    },
   });
 };
 

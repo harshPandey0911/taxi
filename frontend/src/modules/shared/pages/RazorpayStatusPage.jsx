@@ -22,6 +22,7 @@ const RazorpayStatusPage = () => {
 
   const flow = String(searchParams.get('flow') || '').trim().toLowerCase();
   const config = FLOWS[flow] || null;
+  const callbackStatus = String(searchParams.get('status') || '').trim().toLowerCase();
   const payload = {
     razorpay_order_id: String(searchParams.get('razorpay_order_id') || '').trim(),
     razorpay_payment_id: String(searchParams.get('razorpay_payment_id') || '').trim(),
@@ -33,6 +34,14 @@ const RazorpayStatusPage = () => {
     if (!config) {
       setStatus('failure');
       setError('Unsupported Razorpay flow.');
+      return undefined;
+    }
+
+    if (callbackStatus === 'success') {
+      setStatus('success');
+      window.setTimeout(() => {
+        navigate(config.destination, { replace: true });
+      }, 2200);
       return undefined;
     }
 
@@ -90,6 +99,7 @@ const RazorpayStatusPage = () => {
     payload.razorpay_payment_id,
     payload.razorpay_signature,
     providerError,
+    callbackStatus,
     retrySeed,
   ]);
 

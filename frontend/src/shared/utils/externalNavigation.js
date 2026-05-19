@@ -20,6 +20,8 @@ const isIosWebView = () => {
   return /iPhone|iPad|iPod/i.test(userAgent) && /AppleWebKit/i.test(userAgent) && !/Safari/i.test(userAgent);
 };
 
+export const isEmbeddedCheckoutWebView = () => isAndroidWebView() || isIosWebView();
+
 const isMobileBrowser = () => (isAndroid() || isIos()) && !isAndroidWebView() && !isIosWebView();
 
 const buildCheckoutPayload = (targetUrl) => {
@@ -282,7 +284,7 @@ export const openExternalCheckout = async (url) => {
   // browser, etc.) where UPI intents (Google Pay, Paytm, PhonePe UPI) can
   // launch correctly. WebViews cannot handle UPI deep-link intents on their
   // own, so UPI payment options won't appear if we just navigate in-place.
-  if (isAndroidWebView() || isIosWebView()) {
+  if (isEmbeddedCheckoutWebView()) {
     recordCheckoutDiagnostic({ status: 'webview-detected', runtime: checkoutPayload.runtime });
 
     // 1. Try Flutter/native JavaScript channels (postMessage)

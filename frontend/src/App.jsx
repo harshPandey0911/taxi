@@ -56,6 +56,7 @@ const BlogPage = lazy(() => import('./modules/shared/pages/BlogPage'));
 const LinksPage = lazy(() => import('./modules/shared/pages/LinksPage'));
 const PhonePeStatusPage = lazy(() => import('./modules/shared/pages/PhonePeStatusPage'));
 const RazorpayStatusPage = lazy(() => import('./modules/shared/pages/RazorpayStatusPage'));
+const RazorpayLaunchPage = lazy(() => import('./modules/shared/pages/RazorpayLaunchPage'));
 
 // Phase 1 — Parcel flow completions
 const ParcelSearchingDriver = lazy(() => import('./modules/user/pages/parcel/ParcelSearchingDriver'));
@@ -684,6 +685,7 @@ function App() {
               <Route path="/refund" element={<LegalPage />} />
               <Route path="/cancellation" element={<LegalPage />} />
               <Route path="/phonepe/status" element={<PhonePeStatusPage />} />
+              <Route path="/razorpay/launch" element={<RazorpayLaunchPage />} />
               <Route path="/razorpay/status" element={<RazorpayStatusPage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/onboarding" element={<Onboarding />} />
