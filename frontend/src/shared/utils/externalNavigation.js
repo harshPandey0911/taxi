@@ -358,13 +358,7 @@ export const openExternalCheckout = async (url) => {
       return true;
     }
 
-    // 3. Try window.open to break out of the WebView (using target _blank)
-    openUsingWindowOpen(targetUrl, 'webview-window-open');
-
-    // 4. Try dynamic anchor click breakout (using target _blank and noopener)
-    openUsingAnchor(targetUrl, 'webview-anchor-open');
-
-    // 5. Try intent-based redirection fallback to force default Chrome/browser
+    // 3. Try intent-based redirection fallback or custom Chrome protocol handler FIRST!
     if (isAndroidWebView() || globalThis.window?.__isRydon24WebView) {
       const chromeCustomUrl = `googlechromes://navigate?url=${encodeURIComponent(targetUrl)}`;
       try {
@@ -384,6 +378,12 @@ export const openExternalCheckout = async (url) => {
         return true;
       }
     }
+
+    // 4. Try window.open to break out of the WebView (using target _blank)
+    openUsingWindowOpen(targetUrl, 'webview-window-open');
+
+    // 5. Try dynamic anchor click breakout (using target _blank and noopener)
+    openUsingAnchor(targetUrl, 'webview-anchor-open');
 
     recordCheckoutDiagnostic({ status: 'webview-bridge-unavailable' });
   }
