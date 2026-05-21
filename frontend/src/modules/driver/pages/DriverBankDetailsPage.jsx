@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Landmark, QrCode, Save, Upload } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getCurrentDriver, updateDriverProfile } from '../services/registrationService';
-import { uploadService } from '../../shared/services/uploadService';
+import { uploadService } from '../../../shared/services/uploadService';
 
 const unwrapDriver = (response) => response?.data?.data || response?.data || response || null;
 
