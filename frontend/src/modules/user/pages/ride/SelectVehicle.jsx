@@ -1857,8 +1857,18 @@ const SelectVehicle = () => {
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[13px] font-medium text-slate-700">{drop}</p>
+                      {tripMetrics.distanceMeters > 0 && (
+                        <div className="mt-1.5 flex items-center gap-2 select-none">
+                          <span className="inline-flex items-center bg-[#eff6ff] border border-[#dbeafe] px-2 py-0.5 rounded-lg text-[10px] font-bold text-blue-600">
+                            {(tripMetrics.distanceMeters / 1000).toFixed(1)} km
+                          </span>
+                          <span className="inline-flex items-center bg-[#f0fdf4] border border-[#dcfce7] px-2 py-0.5 rounded-lg text-[10px] font-bold text-emerald-600">
+                            {tripMetrics.durationMinutes} mins
+                          </span>
+                        </div>
+                      )}
                     </div>
-                    <span className="shrink-0 text-[11px] font-semibold text-slate-400">Edit</span>
+                    <span className="shrink-0 text-[11px] font-semibold text-slate-400 mt-0.5">Edit</span>
                   </button>
                 </div>
               </div>
