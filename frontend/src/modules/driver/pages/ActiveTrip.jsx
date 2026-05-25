@@ -785,6 +785,7 @@ const ActiveTrip = () => {
     const [paymentQr, setPaymentQr] = useState(null);
     const [paymentQrError, setPaymentQrError] = useState('');
     const [isGeneratingPaymentQr, setIsGeneratingPaymentQr] = useState(false);
+    const [qrZoomed, setQrZoomed] = useState(true);
     const [arrivalGuardError, setArrivalGuardError] = useState('');
     const [localArrivedAt, setLocalArrivedAt] = useState('');
     const [waitingNow, setWaitingNow] = useState(Date.now());
@@ -2020,7 +2021,7 @@ const ActiveTrip = () => {
                             initial={{ y: '100%' }}
                             animate={{ y: 0 }}
                             exit={{ y: '100%' }}
-                            className="bg-white rounded-t-[2.5rem] p-5 pb-8 shadow-2xl border-t border-slate-100"
+                            className="bg-white rounded-t-[2.5rem] p-5 pb-8 shadow-2xl border-t border-slate-100 max-h-[88vh] overflow-y-auto overscroll-contain touch-pan-y"
                         >
                             <div className="flex items-center justify-between mb-6">
                                 <div className="flex items-center gap-3">
@@ -2089,7 +2090,7 @@ const ActiveTrip = () => {
                             initial={{ y: '100%' }}
                             animate={{ y: 0 }}
                             exit={{ y: '100%' }}
-                            className="bg-white rounded-t-[2.5rem] p-6 pb-8 shadow-2xl border-t border-slate-100"
+                            className="bg-white rounded-t-[2.5rem] p-6 pb-8 shadow-2xl border-t border-slate-100 max-h-[88vh] overflow-y-auto overscroll-contain touch-pan-y"
                         >
                             <div className="text-center mb-6">
                                 <h3 className="text-xl font-semibold text-slate-900 tracking-tight uppercase leading-none">Security Pin</h3>
@@ -2174,7 +2175,7 @@ const ActiveTrip = () => {
                             initial={{ y: '100%' }}
                             animate={{ y: 0 }}
                             exit={{ y: '100%' }}
-                            className="bg-white rounded-t-[2.5rem] p-5 pb-8 shadow-2xl border-t border-slate-100"
+                            className="bg-white rounded-t-[2.5rem] p-5 pb-8 shadow-2xl border-t border-slate-100 max-h-[88vh] overflow-y-auto overscroll-contain touch-pan-y"
                         >
                                 <div className="mb-5 rounded-[22px] border border-slate-100 bg-slate-50/85 px-4 py-3.5 shadow-[0_2px_10px_rgba(15,23,42,0.04)]">
                                 <div className="flex items-start justify-between gap-3">
@@ -2256,7 +2257,7 @@ const ActiveTrip = () => {
                             initial={{ y: '100%' }}
                             animate={{ y: 0 }}
                             exit={{ y: '100%' }}
-                            className="bg-white rounded-t-[2.5rem] p-6 pb-8 shadow-2xl border-t border-slate-100"
+                            className="bg-white rounded-t-[2.5rem] p-6 pb-8 shadow-2xl border-t border-slate-100 max-h-[88vh] overflow-y-auto overscroll-contain touch-pan-y"
                         >
                             <div className="text-center mb-6">
                                 <div className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center mb-3 shadow-lg transition-all duration-500 text-white" style={{ backgroundColor: driverPaymentStatus === 'success' ? routeStrokeColor : '#0f172a' }}>
@@ -2424,19 +2425,52 @@ const ActiveTrip = () => {
 
                                 return (
                                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-3xl p-5 mb-6 text-center shadow-2xl text-white" style={{ backgroundColor: routeStrokeColor }}>
-                                        <div className="mx-auto mb-3 flex h-[15rem] w-full max-w-[15rem] items-center justify-center rounded-2xl bg-white p-3 relative overflow-hidden">
+                                        <div
+                                            onClick={() => !isInlineQrImage && setQrZoomed(!qrZoomed)}
+                                            className={`mx-auto mb-3 flex h-[16rem] w-full max-w-[16rem] items-center justify-center rounded-2xl bg-white p-3 relative overflow-hidden select-none transition-all duration-300 ${
+                                                !isInlineQrImage ? 'cursor-pointer hover:scale-[1.02] active:scale-[0.98] shadow-inner' : ''
+                                            }`}
+                                        >
                                             <img
                                                 src={paymentQr?.imageUrl}
                                                 alt={`Payment QR for ${displayFare}`}
-                                                className={isInlineQrImage ? 'h-40 w-40 object-contain' : 'h-auto w-[185%] max-w-none object-contain'}
+                                                className="h-full w-full object-contain"
+                                                style={
+                                                    !isInlineQrImage
+                                                        ? {
+                                                              transform: qrZoomed ? 'scale(2.85) translateY(-2.5%)' : 'scale(1)',
+                                                              transformOrigin: 'center center',
+                                                              transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+                                                          }
+                                                        : undefined
+                                                }
                                             />
-                                            {isInlineQrImage && (
-                                                <motion.div animate={{ top: ['0%', '100%', '0%'] }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }} className="absolute left-0 w-full h-0.5 bg-slate-200" />
+                                            {/* Floating badge for zoom/fit state */}
+                                            {!isInlineQrImage && (
+                                                <div className="absolute top-3 right-3 bg-slate-900/70 backdrop-blur-md px-2 py-1 rounded-lg text-[9px] font-bold text-white flex items-center gap-1 shadow-lg border border-white/10 transition-all select-none">
+                                                    <Scan size={10} strokeWidth={2.5} className="animate-pulse text-emerald-400" />
+                                                    <span>{qrZoomed ? "ZOOMED" : "FIT"}</span>
+                                                </div>
                                             )}
+                                            {/* Glowing High-Tech Emerald Laser Scan Line */}
+                                            <motion.div
+                                                animate={{ top: ['5%', '95%', '5%'] }}
+                                                transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                                                className="absolute left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_10px_#34d399] pointer-events-none"
+                                            />
                                         </div>
                                         <p className="text-white font-semibold text-sm uppercase tracking-wide">Scan to pay {displayFare}</p>
-                                        <p className="text-white/45 text-[10px] font-semibold mt-1 mb-4 uppercase tracking-wide">
-                                            Razorpay collection QR for this ride
+                                        <p
+                                            className={`text-white/45 text-[10px] font-semibold mt-1 mb-4 uppercase tracking-wide transition-colors ${
+                                                !isInlineQrImage ? 'cursor-pointer hover:text-white/70 select-none' : ''
+                                            }`}
+                                            onClick={() => !isInlineQrImage && setQrZoomed(!qrZoomed)}
+                                        >
+                                            {isInlineQrImage
+                                                ? 'Razorpay collection QR for this ride'
+                                                : qrZoomed
+                                                    ? 'Tap QR to see full Razorpay receipt'
+                                                    : 'Tap QR to zoom scan area'}
                                         </p>
                                         {paymentQr?.linkUrl && (
                                             <a
