@@ -12,18 +12,23 @@ import {
   Clock,
   Navigation,
   X,
-  History,
-  TrendingUp,
   ShieldCheck,
   Star,
   Info,
   MapPinned,
   Check,
-  AlertTriangle
+  AlertTriangle,
+  User,
+  ArrowUpDown,
+  PhoneCall,
+  Briefcase,
+  Plane,
+  Compass
 } from 'lucide-react';
 import { userService } from '../../services/userService';
-import { Autocomplete, GoogleMap, MarkerF } from '@react-google-maps/api';
+import { GoogleMap } from '@react-google-maps/api';
 import { useAppGoogleMapsLoader, HAS_VALID_GOOGLE_MAPS_KEY, INDIA_CENTER } from '../../../admin/utils/googleMaps';
+import toast from 'react-hot-toast';
 
 const normalizeSearchValue = (value) => String(value || '').trim().toLowerCase();
 
@@ -37,24 +42,39 @@ const serializePackageForFlow = (pkg = {}) => ({
   availability: pkg.availability || 'available',
   vehicles: Array.isArray(pkg.vehicles)
     ? pkg.vehicles.map((vehicle, index) => ({
-        id: vehicle.id || `${pkg.id || 'pkg'}:${vehicle.vehicleTypeId || index}`,
-        vehicleTypeId: vehicle.vehicleTypeId || '',
-        vehicleName: vehicle.vehicleName || 'Vehicle',
-        capacity: Number(vehicle.capacity || 0),
-        icon: vehicle.icon || '',
-        iconType: vehicle.iconType || vehicle.vehicleName || 'car',
-        dispatchType: String(vehicle.dispatchType || 'normal').trim().toLowerCase(),
-        supportsBidding: ['bidding', 'both'].includes(String(vehicle.dispatchType || 'normal').trim().toLowerCase()),
-        basePrice: Number(vehicle.basePrice || 0),
-        freeDistance: Number(vehicle.freeDistance || 0),
-        distancePrice: Number(vehicle.distancePrice || 0),
-        freeTime: Number(vehicle.freeTime || 0),
-        timePrice: Number(vehicle.timePrice || 0),
-        serviceTax: Number(vehicle.serviceTax || 0),
-        cancellationFee: Number(vehicle.cancellationFee || 0),
-      }))
+      id: vehicle.id || `${pkg.id || 'pkg'}:${vehicle.vehicleTypeId || index}`,
+      vehicleTypeId: vehicle.vehicleTypeId || '',
+      vehicleName: vehicle.vehicleName || 'Vehicle',
+      capacity: Number(vehicle.capacity || 0),
+      icon: vehicle.icon || '',
+      iconType: vehicle.iconType || vehicle.vehicleName || 'car',
+      dispatchType: String(vehicle.dispatchType || 'normal').trim().toLowerCase(),
+      supportsBidding: ['bidding', 'both'].includes(String(vehicle.dispatchType || 'normal').trim().toLowerCase()),
+      basePrice: Number(vehicle.basePrice || 0),
+      freeDistance: Number(vehicle.freeDistance || 0),
+      distancePrice: Number(vehicle.distancePrice || 0),
+      freeTime: Number(vehicle.freeTime || 0),
+      timePrice: Number(vehicle.timePrice || 0),
+      serviceTax: Number(vehicle.serviceTax || 0),
+      cancellationFee: Number(vehicle.cancellationFee || 0),
+    }))
     : [],
 });
+
+const formatDateToDDMMYYYY = (dateStr) => {
+  if (!dateStr) return '';
+  const [year, month, day] = dateStr.split('-');
+  return `${day}-${month}-${year}`;
+};
+
+const formatTimeTo12Hour = (timeStr) => {
+  if (!timeStr) return '';
+  const [hours, minutes] = timeStr.split(':');
+  const h = parseInt(hours, 10);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const displayHour = h % 12 === 0 ? 12 : h % 12;
+  return `${String(displayHour).padStart(2, '0')}:${minutes} ${ampm}`;
+};
 
 const IntercityHome = () => {
   const navigate = useNavigate();
@@ -64,24 +84,40 @@ const IntercityHome = () => {
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+
+  // Locations State
   const [fromCity, setFromCity] = useState('');
-  const [rideMode, setRideMode] = useState('now');
-  const [travelDate, setTravelDate] = useState(new Date().toISOString().split('T')[0]);
-  const [tripType, setTripType] = useState('One Way');
-  
-  // Map Picker State
-  const [showMapPicker, setShowMapPicker] = useState(false);
   const [pickupAddress, setPickupAddress] = useState('');
   const [pickupCoords, setPickupCoords] = useState(null);
+
+  const [toCitySearch, setToCitySearch] = useState('');
+  const [selectedPackage, setSelectedPackage] = useState(null);
+  const [isToFocused, setIsToFocused] = useState(false);
+
+  // Date and Time State
+  const [travelDate, setTravelDate] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  });
+
+  const [travelTime, setTravelTime] = useState(() => {
+    const now = new Date(Date.now() + 60 * 60 * 1000); // Default to 1 hour from now
+    return String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+  });
+
+  const [tripType, setTripType] = useState('One Way');
+
+  // Map Picker State
+  const [showMapPicker, setShowMapPicker] = useState(false);
   const [mapCenter, setMapCenter] = useState(INDIA_CENTER);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const mapInstanceRef = useRef(null);
   const lastCenterRef = useRef(INDIA_CENTER);
+  const dateTimeInputRef = useRef(null);
 
-  const { isLoaded, loadError } = useAppGoogleMapsLoader();
+  const { isLoaded } = useAppGoogleMapsLoader();
 
   useEffect(() => {
     const loadPackages = async () => {
@@ -90,7 +126,7 @@ const IntercityHome = () => {
         const response = await userService.getIntercityPackages();
         const results = Array.isArray(response?.results) ? response.results : [];
         setPackages(results);
-        
+
         // Initial setup for fromCity if results exist
         if (results.length > 0 && !fromCity && results[0]?.serviceLocationName) {
           setFromCity(results[0].serviceLocationName);
@@ -112,7 +148,6 @@ const IntercityHome = () => {
           const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
           setMapCenter(coords);
           setPickupCoords([coords.lng, coords.lat]);
-          // We'll geocode this later if map is opened or automatically
           reverseGeocode(coords);
         },
         null,
@@ -130,9 +165,9 @@ const IntercityHome = () => {
       if (status === 'OK' && results?.[0]) {
         const address = results[0].formatted_address;
         setPickupAddress(address);
-        
+
         // Find city name to filter packages
-        const cityObj = results[0].address_components.find(c => 
+        const cityObj = results[0].address_components.find(c =>
           c.types.includes('locality') || c.types.includes('administrative_area_level_2')
         );
         if (cityObj) {
@@ -184,7 +219,7 @@ const IntercityHome = () => {
   };
 
   const filteredPackages = useMemo(() => {
-    const query = normalizeSearchValue(searchQuery);
+    const query = normalizeSearchValue(toCitySearch);
 
     if (query) {
       return packages.filter((pkg) =>
@@ -195,22 +230,95 @@ const IntercityHome = () => {
     }
 
     return packages;
-  }, [packages, searchQuery]);
+  }, [packages, toCitySearch]);
 
-  const handlePackageSelect = (pkg) => {
+  const handleSwapLocations = () => {
+    if (!pickupAddress && !toCitySearch && !selectedPackage) return;
+
+    const prevPickupAddress = pickupAddress;
+    const prevFromCity = fromCity;
+
+    const newPickup = selectedPackage?.destination || toCitySearch || '';
+    setPickupAddress(newPickup);
+    setPickupCoords(null);
+
+    const newDest = prevPickupAddress || prevFromCity || '';
+    setToCitySearch(newDest);
+
+    // Try to find a package that matches this reverse route
+    const reversedPkg = packages.find(
+      (pkg) =>
+        pkg.serviceLocationName.toLowerCase().trim() === newPickup.toLowerCase().trim() &&
+        pkg.destination.toLowerCase().trim() === newDest.toLowerCase().trim()
+    );
+
+    if (reversedPkg) {
+      setSelectedPackage(reversedPkg);
+      setFromCity(reversedPkg.serviceLocationName);
+    } else {
+      setSelectedPackage(null);
+      if (newPickup) {
+        setFromCity(newPickup);
+      }
+    }
+  };
+
+  const handleDateTimeChange = (e) => {
+    const val = e.target.value; // YYYY-MM-DDTHH:MM
+    if (val) {
+      const [d, t] = val.split('T');
+      setTravelDate(d);
+      setTravelTime(t);
+    }
+  };
+
+  const triggerDateTimePicker = () => {
+    if (dateTimeInputRef.current) {
+      if (typeof dateTimeInputRef.current.showPicker === 'function') {
+        dateTimeInputRef.current.showPicker();
+      } else {
+        dateTimeInputRef.current.focus();
+        dateTimeInputRef.current.click();
+      }
+    }
+  };
+
+  const handleExploreCabs = () => {
+    if (!pickupAddress) {
+      toast.error('Please set your Pickup Location');
+      setShowMapPicker(true);
+      return;
+    }
+
+    if (!selectedPackage) {
+      // Check if we can auto-match the current drop search query to a package
+      const match = packages.find(p => p.destination.toLowerCase().trim() === toCitySearch.toLowerCase().trim());
+      if (match) {
+        setSelectedPackage(match);
+        proceedWithPackage(match);
+      } else {
+        toast.error('Please select a valid Drop Location from the suggestions');
+        setIsToFocused(true);
+      }
+      return;
+    }
+
+    proceedWithPackage(selectedPackage);
+  };
+
+  const proceedWithPackage = (pkg) => {
     const flowPackage = serializePackageForFlow(pkg);
-    const effectiveFromCity =
-      flowPackage.serviceLocationName ||
-      fromCity ||
-      'Pickup City';
+    const effectiveFromCity = flowPackage.serviceLocationName || fromCity || 'Pickup City';
+    const combinedScheduledAt = new Date(`${travelDate}T${travelTime}`);
 
     navigate(`${routePrefix}/intercity/vehicle`, {
       state: {
         fromCity: effectiveFromCity,
         toCity: flowPackage.destination,
         tripType,
-        rideMode,
-        date: rideMode === 'now' ? 'Ride Now' : travelDate,
+        rideMode: 'schedule',
+        date: travelDate,
+        scheduledAt: combinedScheduledAt.toISOString(),
         selectedPackages: [flowPackage],
         pickupAddress,
         pickupCoords
@@ -218,8 +326,11 @@ const IntercityHome = () => {
     });
   };
 
+  const displayDateStr = formatDateToDDMMYYYY(travelDate);
+  const displayTimeStr = formatTimeTo12Hour(travelTime);
+
   return (
-    <div className="min-h-screen bg-[#FAFBFF] max-w-lg mx-auto font-sans relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#F8FAFC] max-w-lg mx-auto font-sans relative overflow-x-hidden flex flex-col pb-28">
       {/* Map Picker Modal */}
       <AnimatePresence>
         {showMapPicker && (
@@ -264,10 +375,10 @@ const IntercityHome = () => {
                 />
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center gap-4 bg-slate-50 p-10 text-center">
-                   <AlertTriangle size={40} className="text-amber-400" />
-                   <p className="text-[14px] font-bold text-slate-500">
-                     Map service unavailable. Please check your connection or API key.
-                   </p>
+                  <AlertTriangle size={40} className="text-amber-400" />
+                  <p className="text-[14px] font-bold text-slate-500">
+                    Map service unavailable. Please check your connection or API key.
+                  </p>
                 </div>
               )}
 
@@ -314,305 +425,338 @@ const IntercityHome = () => {
       </AnimatePresence>
 
       {/* Header */}
-      <header className="px-6 pt-12 pb-4 flex items-center justify-between sticky top-0 bg-[#FAFBFF]/80 backdrop-blur-md z-30">
-        <motion.button 
+      <header className="px-6 py-4 flex items-center justify-between sticky top-0 bg-white border-b border-slate-100 z-30 shadow-sm">
+        <motion.button
           whileTap={{ scale: 0.9 }}
-          onClick={() => navigate(routePrefix || '/')} 
-          className="w-10 h-10 rounded-2xl bg-white shadow-sm flex items-center justify-center border border-gray-100"
+          onClick={() => navigate(routePrefix || '/')}
+          className="w-10 h-10 rounded-2xl bg-white shadow-sm flex items-center justify-center border border-slate-100"
         >
-          <ArrowLeft size={20} className="text-slate-900" strokeWidth={2.5} />
+          <ArrowLeft size={20} className="text-slate-800" strokeWidth={2.5} />
         </motion.button>
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-full border border-gray-100 shadow-sm">
-          <ShieldCheck size={14} className="text-blue-600" />
-          <span className="text-[11px] font-black uppercase tracking-wider text-slate-600">Intercity Safe</span>
+        <h2 className="text-[17px] font-extrabold text-slate-900 tracking-tight">Outstation Cabs</h2>
+        <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 hover:opacity-90 cursor-pointer shadow-inner">
+          <User size={18} strokeWidth={2.5} />
         </div>
       </header>
 
-      <div className="px-6 pt-2">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="space-y-1"
-        >
-          <h1 className="text-[32px] font-black text-slate-900 leading-tight tracking-tight">
-            Intercity <span className="text-blue-600">Rides</span>
-          </h1>
-          <p className="text-[14px] font-bold text-slate-500 max-w-[280px]">
-            City-to-city travel with live destination choices, just like taxi booking.
-          </p>
-        </motion.div>
+      {/* Main Container Card */}
+      <div className="px-5 pt-4">
+        <div className="bg-white rounded-[28px] p-6 shadow-[0_12px_40px_rgba(0,0,0,0.04)] border border-slate-100 relative">
 
-        {/* Search & Mode Selection Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mt-8 bg-white rounded-[32px] p-6 shadow-[0_20px_50px_rgba(0,0,0,0.04)] border border-gray-50"
-        >
+          {/* Subtitle Header */}
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent to-slate-200" />
+            <span className="text-[10px] font-extrabold text-blue-500 tracking-[0.15em] uppercase whitespace-nowrap">
+              India's Premier Intercity Cabs
+            </span>
+            <div className="h-[1px] flex-1 bg-gradient-to-l from-transparent to-slate-200" />
+          </div>
+
           {/* Trip Type Toggle */}
-          <div className="flex bg-slate-50 p-1.5 rounded-2xl mb-6">
-            {['One Way', 'Round Trip'].map(type => (
-              <button
-                key={type}
-                onClick={() => setTripType(type)}
-                className={`flex-1 py-3 rounded-xl text-[13px] font-black transition-all ${
-                  tripType === type ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'
+          <div className="flex border border-slate-200 rounded-xl p-1 mb-5 bg-white">
+            <button
+              onClick={() => setTripType('One Way')}
+              className={`flex-1 py-3.5 rounded-lg text-center transition-all duration-200 flex flex-col items-center justify-center ${tripType === 'One Way' ? 'bg-[#1E90FF] text-white shadow-sm font-bold' : 'text-slate-800 hover:bg-slate-50'
                 }`}
-              >
-                {type}
-              </button>
-            ))}
-          </div>
-
-          <div className="space-y-5">
-            {/* Pickup Location Selection */}
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 ml-1">Pickup from</p>
-              <div className="flex flex-col gap-3">
-                {/* Visual Address Bar */}
-                <button
-                  onClick={() => setShowMapPicker(true)}
-                  className="w-full min-h-[64px] bg-slate-50 border-2 border-transparent hover:border-blue-100 hover:bg-white px-5 py-3 rounded-2xl flex items-center gap-4 transition-all text-left group"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                    <Navigation size={18} className="text-blue-500" strokeWidth={2.5} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[14px] font-black text-slate-900 truncate">
-                      {pickupAddress || 'Set Pickup on Map'}
-                    </p>
-                    <p className="text-[11px] font-bold text-blue-600 uppercase tracking-widest mt-0.5">
-                      {fromCity || 'Detecting City...'}
-                    </p>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            {/* Destination Search (To) */}
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 ml-1">Traveling to</p>
-              <div className="relative group">
-                <div className={`absolute left-5 top-1/2 -translate-y-1/2 transition-colors ${searchQuery ? 'text-blue-600' : 'text-slate-400'}`}>
-                  <Search size={18} strokeWidth={2.5} />
-                </div>
-                
-                <input
-                  type="text"
-                  placeholder="Search available destinations..."
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                  }}
-                  className="w-full h-16 pl-14 pr-12 bg-slate-50 border-2 border-transparent focus:border-blue-100 focus:bg-white rounded-2xl text-[16px] font-bold text-slate-900 placeholder:text-slate-400 transition-all outline-none"
-                />
-                
-                {searchQuery && (
-                  <button 
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 w-7 h-7 bg-white rounded-full flex items-center justify-center shadow-sm text-slate-400 z-10"
-                  >
-                    <X size={14} />
-                  </button>
-                )}
-
-                {/* Local Suggestions Dropdown */}
-                <AnimatePresence>
-                  {searchQuery && filteredPackages.length > 0 && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 10 }}
-                      className="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 max-h-80 overflow-y-auto"
-                    >
-                      {filteredPackages.map((pkg) => (
-                        <button
-                          key={pkg.id}
-                          onClick={() => {
-                            setFromCity(pkg.serviceLocationName);
-                            setSearchQuery(pkg.destination);
-                            handlePackageSelect(pkg);
-                          }}
-                          className="w-full px-5 py-4 text-left hover:bg-slate-50 flex items-center justify-between group border-b border-slate-50 last:border-0 transition-colors"
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center group-hover:bg-blue-50 transition-colors">
-                              <Navigation size={18} className="text-slate-400 group-hover:text-blue-500" />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest truncate max-w-[120px]">
-                                  From {pkg.serviceLocationName}
-                                </p>
-                              </div>
-                              <p className="text-[15px] font-black text-slate-900 group-hover:text-blue-600 transition-colors flex items-center gap-2">
-                                <span className="text-slate-400">To</span> {pkg.destination}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">From</p>
-                            <p className="text-[14px] font-black text-slate-900 group-hover:text-blue-600 transition-colors">
-                              ₹{pkg.vehicles?.[0]?.basePrice || '---'}
-                            </p>
-                          </div>
-                        </button>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
-
-            {/* Ride Mode & Date */}
-            <div className="flex gap-3">
-              <button
-                onClick={() => setRideMode(rideMode === 'now' ? 'schedule' : 'now')}
-                className={`flex-1 h-14 rounded-2xl border-2 flex items-center justify-center gap-2 transition-all ${
-                  rideMode === 'schedule' ? 'border-blue-100 bg-blue-50/30 text-blue-600' : 'border-slate-50 bg-slate-50 text-slate-500'
+            >
+              <span className="text-[13px] font-extrabold tracking-wide uppercase leading-tight">One Way</span>
+              <span className={`text-[9px] mt-0.5 leading-none opacity-85 ${tripType === 'One Way' ? 'text-white' : 'text-slate-500'}`}>
+                Drop-off only
+              </span>
+            </button>
+            <button
+              onClick={() => setTripType('Round Trip')}
+              className={`flex-1 py-3.5 rounded-lg text-center transition-all duration-200 flex flex-col items-center justify-center ${tripType === 'Round Trip' ? 'bg-[#1E90FF] text-white shadow-sm font-bold' : 'text-slate-800 hover:bg-slate-50'
                 }`}
-              >
-                {rideMode === 'now' ? <Clock size={18} /> : <Calendar size={18} />}
-                <span className="text-[14px] font-black uppercase tracking-wider">
-                  {rideMode === 'now' ? 'Ride Now' : 'Scheduled'}
-                </span>
-              </button>
-              
-            </div>
-
-            <AnimatePresence>
-              {rideMode === 'schedule' && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="overflow-hidden"
-                >
-                  <div className="pt-2">
-                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 ml-1">Travel Date</p>
-                    <input
-                      type="date"
-                      min={new Date().toISOString().split('T')[0]}
-                      value={travelDate}
-                      onChange={(e) => setTravelDate(e.target.value)}
-                      className="w-full h-14 px-5 bg-slate-50 border-2 border-transparent rounded-2xl text-[15px] font-black text-slate-900 outline-none focus:border-blue-100 focus:bg-white transition-all"
-                    />
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </motion.div>
-
-        {/* Results Section (Same as before) */}
-        <div className="mt-10 pb-10">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-[18px] font-black text-slate-900 flex items-center gap-2">
-              {searchQuery ? 'Matching Destinations' : 'Available Destinations'}
-              {searchQuery && (
-                <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] rounded-full">
-                  {filteredPackages.length} Found
-                </span>
-              )}
-            </h3>
+            >
+              <span className="text-[13px] font-extrabold tracking-wide uppercase leading-tight">Round Trip</span>
+              <span className={`text-[9px] mt-0.5 leading-none opacity-85 ${tripType === 'Round Trip' ? 'text-white' : 'text-slate-500'}`}>
+                Return with same cab
+              </span>
+            </button>
           </div>
 
-          <div className="space-y-4">
-            {loading ? (
-              <div className="py-20 flex flex-col items-center justify-center gap-4 text-slate-300">
-                <LoaderCircle size={40} className="animate-spin text-blue-500" />
-                <p className="text-[14px] font-bold">Syncing best routes...</p>
+          {/* Locations Fields Box */}
+          <div className="relative border border-slate-200 rounded-2xl bg-[#F2F7FA] p-0.5 overflow-visible">
+
+            {/* FROM Field */}
+            <div
+              onClick={() => setShowMapPicker(true)}
+              className="px-5 py-4 flex items-center gap-4 cursor-pointer hover:bg-[#EBF3F7] rounded-t-2xl transition-colors border-b border-slate-200/80"
+            >
+              <div className="w-6 h-6 shrink-0 flex items-center justify-center text-slate-400">
+                <MapPin size={20} />
               </div>
-            ) : filteredPackages.length > 0 ? (
-              filteredPackages.map((pkg, idx) => (
-                <motion.div
-                  key={pkg.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  onClick={() => handlePackageSelect(pkg)}
-                  className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all cursor-pointer group relative overflow-hidden"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">From {pkg.serviceLocationName}</p>
-                      </div>
-                      <h4 className="text-[20px] font-black text-slate-900 group-hover:text-blue-600 transition-colors truncate">
-                        {pkg.destination}
-                      </h4>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Starts at</p>
-                      <p className="text-[20px] font-black text-slate-900">
-                        ₹{pkg.vehicles?.[0]?.basePrice ? pkg.vehicles[0].basePrice.toLocaleString() : '---'}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-5 pt-4 border-t border-slate-50 flex items-center justify-between">
-                    <div className="flex -space-x-2">
-                      {pkg.vehicles?.slice(0, 3).map((v, i) => (
-                        <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center overflow-hidden">
-                          <img src={v.icon || '/4_Taxi.png'} alt="" className="w-5 h-5 object-contain" />
-                        </div>
-                      ))}
-                      {pkg.vehicles?.length > 3 && (
-                        <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-900 text-white text-[9px] font-black flex items-center justify-center">
-                          +{pkg.vehicles.length - 3}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[12px] font-black text-slate-400 group-hover:text-blue-500 transition-colors uppercase tracking-widest">
-                      Choose <ChevronRight size={14} strokeWidth={3} />
-                    </div>
-                  </div>
-                </motion.div>
-              ))
-            ) : searchQuery ? (
-              <div className="py-20 text-center">
-                <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
-                  <Search size={32} />
-                </div>
-                <h4 className="text-[18px] font-black text-slate-900">No Routes Found</h4>
-                <p className="text-[14px] font-bold text-slate-400 mt-1">Try searching for a different city</p>
-              </div>
-            ) : (
-              <div className="py-20 text-center">
-                <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
-                  <MapPin size={32} />
-                </div>
-                <h4 className="text-[18px] font-black text-slate-900">No Routes Available</h4>
-                <p className="text-[14px] font-bold text-slate-400 mt-1">
-                  Admin hasn't created any intercity packages for your location yet.
+              <div className="min-w-0 flex-1">
+                <p className="text-[9px] font-extrabold text-slate-400 tracking-wider uppercase leading-none mb-1.5">FROM</p>
+                <p className="text-[15px] font-bold text-slate-800 truncate leading-snug">
+                  {pickupAddress || 'Enter Pickup Location'}
                 </p>
               </div>
-            )}
+            </div>
+
+            {/* SWAP Button */}
+            <button
+              onClick={handleSwapLocations}
+              type="button"
+              className="absolute right-4 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white shadow-md border border-slate-200 flex items-center justify-center z-10 hover:scale-105 active:scale-95 transition-transform cursor-pointer"
+            >
+              <ArrowUpDown size={15} className="text-[#1E90FF]" />
+            </button>
+
+            {/* TO Field */}
+            <div className="px-5 py-4 flex items-center gap-4 rounded-b-2xl relative">
+              <div className="w-6 h-6 shrink-0 flex items-center justify-center text-[#1E90FF]">
+                <MapPin size={20} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[9px] font-extrabold text-slate-400 tracking-wider uppercase leading-none mb-1">TO</p>
+                <input
+                  type="text"
+                  placeholder="Enter Drop Location"
+                  value={toCitySearch}
+                  onChange={(e) => {
+                    setToCitySearch(e.target.value);
+                    if (selectedPackage && selectedPackage.destination !== e.target.value) {
+                      setSelectedPackage(null);
+                    }
+                  }}
+                  onFocus={() => setIsToFocused(true)}
+                  className="w-full bg-transparent border-0 outline-none p-0 font-bold text-[15px] text-slate-800 placeholder:text-slate-400 leading-snug mt-0.5"
+                />
+              </div>
+              {toCitySearch && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setToCitySearch('');
+                    setSelectedPackage(null);
+                  }}
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-200/50"
+                >
+                  <X size={14} />
+                </button>
+              )}
+
+              {/* Suggestions Dropdown Overlay */}
+              <AnimatePresence>
+                {isToFocused && (
+                  <>
+                    {/* Click Outside Handler Backdrop */}
+                    <div className="fixed inset-0 z-40" onClick={() => setIsToFocused(false)} />
+
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 8 }}
+                      className="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 z-50 max-h-72 overflow-y-auto"
+                    >
+                      {loading ? (
+                        <div className="p-8 flex items-center justify-center gap-2.5 text-slate-400">
+                          <LoaderCircle size={18} className="animate-spin text-blue-500" />
+                          <span className="text-[13px] font-medium">Loading routes...</span>
+                        </div>
+                      ) : filteredPackages.length > 0 ? (
+                        filteredPackages.map((pkg) => (
+                          <button
+                            key={pkg.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedPackage(pkg);
+                              setToCitySearch(pkg.destination);
+                              setFromCity(pkg.serviceLocationName);
+                              setIsToFocused(false);
+                            }}
+                            className="w-full px-5 py-3.5 text-left hover:bg-slate-50 flex items-center justify-between border-b border-slate-50 last:border-0 transition-colors group"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">
+                                From {pkg.serviceLocationName}
+                              </p>
+                              <p className="text-[14px] font-black text-slate-800 group-hover:text-blue-600 transition-colors">
+                                To {pkg.destination}
+                              </p>
+                            </div>
+                            <div className="text-right pl-3">
+                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Starts from</p>
+                              <p className="text-[14px] font-black text-slate-900 group-hover:text-blue-600">
+                                ₹{pkg.vehicles?.[0]?.basePrice || '---'}
+                              </p>
+                            </div>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="p-8 text-center text-slate-400">
+                          <p className="text-[13px] font-bold">No routes matching query</p>
+                          <p className="text-[11px] mt-0.5">Check spelling or try a different city</p>
+                        </div>
+                      )}
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
+
+          {/* Add Stops Button and Badge */}
+          <div className="flex items-center gap-3 mt-4 ml-1">
+            <button
+              type="button"
+              className="border border-[#1E90FF] rounded-lg px-3 py-1.5 text-[#1E90FF] text-[11px] font-black tracking-wide uppercase hover:bg-blue-50/50 transition-colors active:scale-95"
+            >
+              + Add Stops
+            </button>
+            <span className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
+              NEW
+            </span>
+          </div>
+
+          {/* TRIP START Picker */}
+          <div
+            onClick={triggerDateTimePicker}
+            className="mt-4 p-4 rounded-2xl bg-[#EBF5FC] border border-[#D5E6F3] flex items-center gap-4 cursor-pointer hover:bg-[#E2F0FA] transition-colors group relative"
+          >
+            <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center text-[#1E90FF] shadow-sm">
+              <Calendar size={18} />
+            </div>
+            <div className="flex-1">
+              <p className="text-[9px] font-extrabold text-slate-400 tracking-wider uppercase leading-none mb-1.5">TRIP START</p>
+              <div className="flex items-baseline gap-2">
+                <span className="text-[15px] font-black text-slate-800 leading-none">{displayDateStr}</span>
+                <span className="text-[12px] font-medium text-slate-500 leading-none">{displayTimeStr}</span>
+              </div>
+            </div>
+            <ChevronRight size={16} className="text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+
+            {/* Hidden Native Picker */}
+            <input
+              ref={dateTimeInputRef}
+              type="datetime-local"
+              min={new Date().toISOString().slice(0, 16)}
+              value={`${travelDate}T${travelTime}`}
+              onChange={handleDateTimeChange}
+              className="absolute pointer-events-none opacity-0 inset-0 w-full h-full"
+            />
+          </div>
+
+          {/* EXPLORE CABS Button */}
+          <button
+            onClick={handleExploreCabs}
+            type="button"
+            className="mt-5 w-full bg-[#FF7A1A] hover:bg-[#E06610] text-white font-extrabold text-[15px] py-4 rounded-xl tracking-widest shadow-md hover:shadow-lg active:scale-[0.98] transition-all text-center uppercase"
+          >
+            EXPLORE CABS
+          </button>
+
         </div>
       </div>
 
-      {/* Floating Info */}
-      {!searchQuery && (
-        <div className="px-6">
-          <div className="bg-indigo-600 rounded-[32px] p-6 text-white overflow-hidden relative">
-            <div className="relative z-10">
-              <div className="flex items-center gap-2 mb-2">
-                <Star size={16} fill="white" className="text-white" />
-                <span className="text-[11px] font-black uppercase tracking-widest opacity-80">Special Offer</span>
-              </div>
-              <h4 className="text-[22px] font-black leading-tight">First Intercity Trip? Get 20% Off!</h4>
-              <button className="mt-4 px-5 py-2.5 bg-white text-indigo-600 rounded-xl text-[13px] font-black uppercase tracking-wider shadow-lg">
-                View Promo
-              </button>
-            </div>
-            <Sparkles className="absolute top-4 right-4 text-white/20 w-24 h-24 rotate-12" />
-          </div>
-        </div>
-      )}
+      {/* Horizontal Scroll Banners */}
+      <div className="mt-6">
+        <div className="flex gap-4 overflow-x-auto px-5 py-2 scrollbar-hide">
 
-      {/* Bottom Nav Spacer */}
-      <div className="h-20" />
+          {/* Banner 1: Chardham */}
+          <div className="w-[280px] shrink-0 h-[140px] rounded-2xl overflow-hidden relative shadow-md group">
+            <img
+              src="/chardham_banner.png"
+              alt="Chardham Cab Packages"
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex flex-col justify-end p-4">
+              <span className="self-start bg-black/75 border border-amber-400/40 text-amber-400 text-[8px] font-extrabold px-2 py-0.5 rounded-full tracking-wider uppercase mb-1">
+                ★ Exclusive ★
+              </span>
+              <h4 className="text-white text-[15px] font-black uppercase tracking-tight leading-tight">
+                Chardham Cab Packages
+              </h4>
+            </div>
+          </div>
+
+          {/* Banner 2: Offers */}
+          <div className="w-[280px] shrink-0 h-[140px] rounded-2xl overflow-hidden relative shadow-md group">
+            <img
+              src="/offers_banner.png"
+              alt="Beach Cab Offers"
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex flex-col justify-end p-4">
+              <span className="self-start bg-amber-500 text-slate-900 text-[8px] font-extrabold px-2 py-0.5 rounded-full tracking-wider uppercase mb-1">
+                Offers
+              </span>
+              <h4 className="text-white text-[15px] font-black uppercase tracking-tight leading-tight">
+                First Intercity Trip? Get 20% Off!
+              </h4>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* Travel Expert CTA Banner */}
+      <div className="px-5 mt-6">
+        <div className="p-4 bg-gradient-to-r from-[#E3F2FD]/80 to-[#E1F5FE]/80 border border-blue-100 rounded-2xl flex items-center justify-between shadow-sm">
+          <div className="min-w-0 flex-1 pr-3">
+            <p className="text-[8px] font-extrabold text-blue-500 tracking-wider uppercase mb-0.5">SAY HELLO TO</p>
+            <h4 className="text-[13px] font-extrabold text-slate-900 leading-tight">YOUR TRAVEL EXPERT</h4>
+            <p className="text-[10px] text-slate-500 mt-0.5 leading-snug">Get expert advice for smarter travel plans!</p>
+          </div>
+          <button
+            onClick={() => window.open('tel:+918000000000', '_self')}
+            type="button"
+            className="bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 rounded-xl px-3 py-2 flex items-center gap-1.5 shadow-sm transition-all text-[11px] font-black cursor-pointer shrink-0 active:scale-95"
+          >
+            <PhoneCall size={12} className="text-[#1E90FF]" />
+            Call Expert | 24x7
+          </button>
+        </div>
+      </div>
+
+      {/* Bottom Navigation Bar */}
+      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg bg-white border-t border-slate-200 grid grid-cols-4 h-16 items-center z-40 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
+
+        {/* ONE WAY */}
+        <button
+          onClick={() => {
+            setTripType('One Way');
+          }}
+          className={`flex flex-col items-center justify-center h-full border-r border-slate-100 transition-colors ${tripType === 'One Way' ? 'bg-[#1E90FF] text-white font-extrabold' : 'text-slate-500 hover:bg-slate-50'
+            }`}
+        >
+          <Compass size={18} strokeWidth={2.5} className="mb-0.5" />
+          <span className="text-[9px] tracking-wide uppercase font-extrabold">One Way</span>
+        </button>
+
+        {/* ROUND TRIP */}
+        <button
+          onClick={() => {
+            setTripType('Round Trip');
+          }}
+          className={`flex flex-col items-center justify-center h-full border-r border-slate-100 transition-colors ${tripType === 'Round Trip' ? 'bg-[#1E90FF] text-white font-extrabold' : 'text-slate-500 hover:bg-slate-50'
+            }`}
+        >
+          <Briefcase size={18} strokeWidth={2.5} className="mb-0.5" />
+          <span className="text-[9px] tracking-wide uppercase font-extrabold">Round Trip</span>
+        </button>
+
+        {/* LOCAL */}
+        <button
+          onClick={() => navigate(`${routePrefix}/rental`)}
+          className="flex flex-col items-center justify-center h-full border-r border-slate-100 text-slate-500 hover:bg-slate-50 transition-colors"
+        >
+          <Clock size={18} strokeWidth={2.5} className="mb-0.5" />
+          <span className="text-[9px] tracking-wide uppercase font-extrabold">Local</span>
+        </button>
+
+        {/* AIRPORT */}
+        <button
+          onClick={() => navigate(`${routePrefix}/cab/airport`)}
+          className="flex flex-col items-center justify-center h-full text-slate-500 hover:bg-slate-50 transition-colors"
+        >
+          <Plane size={18} strokeWidth={2.5} className="mb-0.5" />
+          <span className="text-[9px] tracking-wide uppercase font-extrabold">Airport</span>
+        </button>
+
+      </nav>
     </div>
   );
 };
