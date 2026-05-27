@@ -172,6 +172,26 @@ const flushPendingRegistration = async () => {
 };
 
 export const installNativeFcmBridge = () => {
+  const drainQueuedCalls = async () => {
+    const queuedCalls = Array.isArray(window.__pendingNativeFcmCalls)
+      ? [...window.__pendingNativeFcmCalls]
+      : [];
+
+    window.__pendingNativeFcmCalls = [];
+
+    for (const queuedCall of queuedCalls) {
+      try {
+        await submitFcmToken(queuedCall || {});
+      } catch (error) {
+        savePendingRegistration({
+          token: queuedCall?.token,
+          role: inferRole(queuedCall?.role),
+          platform: queuedCall?.platform || 'mobile',
+        });
+      }
+    }
+  };
+
   window.__saveNativeFcmToken = async (token, role, platform = 'mobile') => {
     try {
       const result = await submitFcmToken({ token, role, platform });
@@ -216,6 +236,7 @@ export const installNativeFcmBridge = () => {
     }
   });
 
+  drainQueuedCalls().catch(() => {});
   window.setTimeout(retryPending, 1500);
   window.setInterval(retryPending, 15000);
 };

@@ -28,6 +28,19 @@ try {
   console.error('[UA Spoofing] Failed to override userAgent property:', e);
 }
 
+if (typeof window !== 'undefined') {
+  window.__pendingNativeFcmCalls = Array.isArray(window.__pendingNativeFcmCalls)
+    ? window.__pendingNativeFcmCalls
+    : [];
+
+  if (typeof window.__saveNativeFcmToken !== 'function') {
+    window.__saveNativeFcmToken = (token, role, platform = 'mobile') => {
+      window.__pendingNativeFcmCalls.push({ token, role, platform });
+      return { ok: false, reason: 'bridge-not-ready' };
+    };
+  }
+}
+
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import { installLegacyBackendShim } from './shared/api/legacyBackendShim'
