@@ -4,6 +4,11 @@ import { userAuthService, getLocalUserToken } from '../../modules/user/services/
 const PENDING_NATIVE_FCM_KEY = 'pendingNativeFcmRegistration';
 const LAST_NATIVE_FCM_KEY = 'lastNativeFcmRegistration';
 const LAST_NATIVE_FCM_DEBUG_KEY = 'lastNativeFcmDebugState';
+const NATIVE_FCM_GLOBAL_KEYS = [
+  '__nativeFcmToken',
+  '__rydon24NativeFcmToken',
+  '__fcmToken',
+];
 const DRIVER_PORTAL_ROLES = new Set([
   'driver',
   'owner',
@@ -117,6 +122,41 @@ const persistDebugState = (payload) => {
   } catch {}
 };
 
+const normalizeBridgePayload = (payload = {}) => {
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+
+  const token = String(
+    payload.token ||
+    payload.fcmToken ||
+    payload.fcm_token ||
+    payload.registrationToken ||
+    payload.nativeFcmToken ||
+    '',
+  ).trim();
+
+  if (!token) {
+    return null;
+  }
+
+  return {
+    token,
+    role: String(payload.role || payload.userRole || payload.accountRole || '').trim(),
+    platform: String(payload.platform || payload.devicePlatform || payload.sourcePlatform || 'mobile').trim() || 'mobile',
+  };
+};
+
+const readQueuedGlobalPayloads = () => {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+
+  return NATIVE_FCM_GLOBAL_KEYS
+    .map((key) => normalizeBridgePayload(window[key]))
+    .filter(Boolean);
+};
+
 const submitFcmToken = async ({ token, role, platform = 'mobile' }) => {
   const normalizedRole = inferRole(role);
   const normalizedPlatform = String(platform || 'mobile').trim().toLowerCase() || 'mobile';
@@ -172,13 +212,7 @@ const flushPendingRegistration = async () => {
 };
 
 export const installNativeFcmBridge = () => {
-  const drainQueuedCalls = async () => {
-    const queuedCalls = Array.isArray(window.__pendingNativeFcmCalls)
-      ? [...window.__pendingNativeFcmCalls]
-      : [];
-
-    window.__pendingNativeFcmCalls = [];
-
+  const processQueuedCalls = async (queuedCalls = []) => {
     for (const queuedCall of queuedCalls) {
       try {
         await submitFcmToken(queuedCall || {});
@@ -192,7 +226,20 @@ export const installNativeFcmBridge = () => {
     }
   };
 
-  window.__saveNativeFcmToken = async (token, role, platform = 'mobile') => {
+  const drainQueuedCalls = async () => {
+    const queuedCalls = Array.isArray(window.__pendingNativeFcmCalls)
+      ? [...window.__pendingNativeFcmCalls]
+      : [];
+
+    window.__pendingNativeFcmCalls = [];
+
+    await processQueuedCalls(queuedCalls);
+
+    const globalPayloads = readQueuedGlobalPayloads();
+    await processQueuedCalls(globalPayloads);
+  };
+
+  const handleNativeFcmToken = async (token, role, platform = 'mobile') => {
     try {
       const result = await submitFcmToken({ token, role, platform });
       console.info('[native-fcm-bridge] token registration result', result);
@@ -209,6 +256,10 @@ export const installNativeFcmBridge = () => {
       return { ok: false, reason: error?.message || 'unknown-error' };
     }
   };
+
+  window.__saveNativeFcmToken = handleNativeFcmToken;
+  window.__setNativeFcmToken = handleNativeFcmToken;
+  window.setNativeFcmToken = handleNativeFcmToken;
 
   window.__flushNativeFcmToken = async () => {
     const result = await flushPendingRegistration();
@@ -228,9 +279,29 @@ export const installNativeFcmBridge = () => {
     flushPendingRegistration().catch(() => {});
   };
 
+  const handleMessageEvent = (event) => {
+    try {
+      const rawData = event?.data;
+      const parsedData = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
+      const normalizedPayload = normalizeBridgePayload(parsedData);
+
+      if (!normalizedPayload) {
+        return;
+      }
+
+      window.__pendingNativeFcmCalls = Array.isArray(window.__pendingNativeFcmCalls)
+        ? window.__pendingNativeFcmCalls
+        : [];
+
+      window.__pendingNativeFcmCalls.push(normalizedPayload);
+      retryPending();
+    } catch {}
+  };
+
   window.addEventListener('focus', retryPending);
   window.addEventListener('pageshow', retryPending);
   window.addEventListener('app:auth-ready', retryPending);
+  window.addEventListener('message', handleMessageEvent);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
       retryPending();
