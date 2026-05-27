@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, Camera, CheckCircle2, Eye, FileText, Loader2, RefreshCw, X } from 'lucide-react';
+import { ArrowLeft, CalendarDays, Camera, CheckCircle2, Eye, FileText, Loader2, RefreshCw, X } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getCurrentDriver, getDriverDocumentTemplates, updateDriverDocument } from '../../services/registrationService';
 import { useImageUpload } from '../../../../shared/hooks/useImageUpload';
@@ -59,6 +59,22 @@ const formatExpiryDate = (value) => {
   return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
+const toDateInputValue = (value) => {
+  if (!value) return '';
+  const normalized = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    return normalized;
+  }
+
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const unwrapDriver = (response) => response?.data?.data || response?.data || response || null;
 const toTimestamp = (value) => {
   if (!value) return 0;
@@ -78,6 +94,7 @@ const DriverDocuments = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [uploadingDocumentKey, setUploadingDocumentKey] = useState('');
+  const [expiryModal, setExpiryModal] = useState({ isOpen: false, docId: '', name: '', value: '', isSubmitting: false });
   const uploadingDocumentKeyRef = useRef('');
   const documentInputRefs = useRef({});
   const autoOpenedDocumentRef = useRef('');
@@ -172,6 +189,8 @@ const DriverDocuments = () => {
         id: field.key,
         name: field.label,
         templateName: field.templateName,
+        hasExpiryDate: field.hasExpiryDate,
+        rawDocument: doc,
         reviewStatus: getDocumentReviewStatus(doc),
         hasDocument: hasDoc,
         status: verified
@@ -225,6 +244,50 @@ const DriverDocuments = () => {
     }, 0);
   }, [docs, focusDocumentKey, imageUploading, isLoading]);
 
+  const closeExpiryModal = () => {
+    setExpiryModal({ isOpen: false, docId: '', name: '', value: '', isSubmitting: false });
+  };
+
+  const handleExpirySave = async () => {
+    if (!expiryModal.docId || !expiryModal.value) {
+      return;
+    }
+
+    const currentDocument = driver?.documents?.[expiryModal.docId] || {};
+    const nextExpiryDate = String(expiryModal.value).trim();
+
+    try {
+      setExpiryModal((prev) => ({ ...prev, isSubmitting: true }));
+      setError('');
+
+      const response = await updateDriverDocument(expiryModal.docId, {
+        ...currentDocument,
+        key: expiryModal.docId,
+        expiryDate: nextExpiryDate,
+        expiry_date: nextExpiryDate,
+        expiresAt: nextExpiryDate,
+        uploaded: currentDocument?.uploaded ?? true,
+      });
+
+      const documents = response?.data?.documents || {
+        ...(driver?.documents || {}),
+        [expiryModal.docId]: {
+          ...currentDocument,
+          key: expiryModal.docId,
+          expiryDate: nextExpiryDate,
+          expiry_date: nextExpiryDate,
+          expiresAt: nextExpiryDate,
+        },
+      };
+
+      setDriver((prev) => ({ ...(prev || {}), documents }));
+      closeExpiryModal();
+    } catch (requestError) {
+      setError(requestError?.message || 'Unable to update document expiry date');
+      setExpiryModal((prev) => ({ ...prev, isSubmitting: false }));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f8f9fb] font-sans p-6 pt-10 pb-32 overflow-x-hidden">
       <header className="flex items-center gap-4 mb-8">
@@ -269,6 +332,54 @@ const DriverDocuments = () => {
               <button onClick={() => setSelectedDoc(null)} className="w-full h-11 bg-slate-900 text-white rounded-xl text-[12px] font-black uppercase tracking-widest active:scale-95 transition-all">
                 Close Viewer
               </button>
+            </motion.div>
+          </div>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {expiryModal.isOpen ? (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-6">
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white p-6 rounded-[1.8rem] shadow-2xl space-y-5 max-w-[360px] w-full">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h4 className="text-base font-black text-slate-900 uppercase tracking-tight">Update Expiry Date</h4>
+                  <p className="mt-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{expiryModal.name}</p>
+                </div>
+                <button onClick={closeExpiryModal} className="w-8 h-8 bg-slate-50 hover:bg-slate-100 rounded-full flex items-center justify-center text-slate-400 transition-colors">
+                  <X size={18} strokeWidth={2.5} />
+                </button>
+              </div>
+
+              <label className="block">
+                <span className="mb-2 inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  <CalendarDays size={13} />
+                  Expiry Date
+                </span>
+                <input
+                  type="date"
+                  value={expiryModal.value}
+                  onChange={(event) => setExpiryModal((prev) => ({ ...prev, value: event.target.value }))}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-colors focus:border-emerald-200 focus:bg-white"
+                />
+              </label>
+
+              <div className="flex gap-3">
+                <button onClick={closeExpiryModal} className="flex-1 h-11 rounded-xl bg-slate-100 text-[12px] font-black uppercase tracking-widest text-slate-600 transition-all active:scale-95">
+                  Cancel
+                </button>
+                <button
+                  onClick={handleExpirySave}
+                  disabled={expiryModal.isSubmitting || !expiryModal.value}
+                  className={`flex-1 h-11 rounded-xl text-[12px] font-black uppercase tracking-widest text-white transition-all ${
+                    expiryModal.isSubmitting || !expiryModal.value
+                      ? 'bg-slate-300'
+                      : 'bg-emerald-600 active:scale-95'
+                  }`}
+                >
+                  {expiryModal.isSubmitting ? 'Saving...' : 'Save Date'}
+                </button>
+              </div>
             </motion.div>
           </div>
         ) : null}
@@ -368,6 +479,25 @@ const DriverDocuments = () => {
                     </span>
                     
                     <div className="flex items-center gap-1.5 ml-1">
+                      {doc.hasExpiryDate ? (
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setExpiryModal({
+                              isOpen: true,
+                              docId: doc.id,
+                              name: doc.name,
+                              value: toDateInputValue(doc.expiryDate),
+                              isSubmitting: false,
+                            });
+                          }}
+                          className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-amber-50 px-2.5 text-[10px] font-black uppercase tracking-widest text-amber-600 transition-all hover:bg-amber-100 active:scale-90"
+                        >
+                          <CalendarDays size={13} strokeWidth={2.5} />
+                          <span>{doc.expiryDate ? 'Edit Date' : 'Add Date'}</span>
+                        </button>
+                      ) : null}
                       <label
                         onClick={(event) => event.stopPropagation()}
                         className={`inline-flex h-8 items-center justify-center gap-1.5 rounded-lg px-2.5 text-[10px] font-black uppercase tracking-widest transition-all ${
