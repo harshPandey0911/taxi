@@ -34,6 +34,10 @@ const hasBrowserSupport = () =>
   'serviceWorker' in navigator &&
   typeof Notification !== 'undefined';
 
+const getPushPlatform = () => (
+  typeof window !== 'undefined' && window.__isRydon24WebView ? 'mobile' : 'web'
+);
+
 const getStoredRegistration = () => {
   try {
     return JSON.parse(localStorage.getItem(LAST_BROWSER_FCM_KEY) || 'null');
@@ -93,12 +97,14 @@ const createServiceWorkerUrl = () => {
 };
 
 const saveTokenForRole = async (role, token) => {
+  const platform = getPushPlatform();
+
   if (role === 'driver') {
-    await saveDriverFcmToken(token, 'web');
+    await saveDriverFcmToken(token, platform);
     return;
   }
 
-  await userAuthService.saveFcmToken(token, 'web');
+  await userAuthService.saveFcmToken(token, platform);
 };
 
 const shouldSkipRegistration = (role, token) => {
@@ -158,14 +164,16 @@ const registerBrowserFcmToken = async ({ interactive = false } = {}) => {
 
   const rolesToSave = roles.filter((role) => !shouldSkipRegistration(role, token));
   await Promise.all(rolesToSave.map((role) => saveTokenForRole(role, token)));
+  const platform = getPushPlatform();
 
   roles.forEach((role) => {
-    persistRegistration({ role, token, platform: 'web' });
+    persistRegistration({ role, token, platform });
   });
 
   return {
     ok: true,
     token,
+    platform,
     roles,
     skippedRoles: roles.filter((role) => !rolesToSave.includes(role)),
   };
