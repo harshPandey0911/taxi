@@ -3,6 +3,14 @@ import { userAuthService, getLocalUserToken } from '../../modules/user/services/
 
 const PENDING_NATIVE_FCM_KEY = 'pendingNativeFcmRegistration';
 const LAST_NATIVE_FCM_KEY = 'lastNativeFcmRegistration';
+const DRIVER_PORTAL_ROLES = new Set([
+  'driver',
+  'owner',
+  'pooling_driver',
+  'bus_driver',
+  'service_center',
+  'service_center_staff',
+]);
 
 const decodeBase64Url = (value) => {
   const normalized = String(value || '').replace(/-/g, '+').replace(/_/g, '/');
@@ -31,11 +39,14 @@ const getTokenPayload = (token) => {
 const inferRole = (explicitRole) => {
   const normalizedRole = String(explicitRole || '').trim().toLowerCase();
 
-  if (normalizedRole === 'driver' || normalizedRole === 'user') {
+  if (normalizedRole === 'user' || DRIVER_PORTAL_ROLES.has(normalizedRole)) {
     return normalizedRole;
   }
 
   const pathname = String(window.location.pathname || '').toLowerCase();
+  if (pathname.includes('/taxi/owner')) {
+    return 'owner';
+  }
   if (pathname.includes('/taxi/driver')) {
     return 'driver';
   }
@@ -46,19 +57,20 @@ const inferRole = (explicitRole) => {
   const storedCandidates = [
     sessionStorage.getItem('driverToken'),
     sessionStorage.getItem('token'),
+    localStorage.getItem('driverToken'),
     localStorage.getItem('userToken'),
     localStorage.getItem('token'),
   ].filter(Boolean);
 
   const tokenRole = storedCandidates
     .map((token) => getTokenPayload(token)?.role)
-    .find((role) => role === 'driver' || role === 'user');
+    .find((role) => role === 'user' || DRIVER_PORTAL_ROLES.has(String(role || '').toLowerCase()));
 
-  return tokenRole || '';
+  return String(tokenRole || '').toLowerCase();
 };
 
 const hasRoleSession = (role) => {
-  if (role === 'driver') {
+  if (DRIVER_PORTAL_ROLES.has(String(role || '').toLowerCase())) {
     return Boolean(getLocalDriverToken());
   }
 
@@ -114,7 +126,7 @@ const submitFcmToken = async ({ token, role, platform = 'mobile' }) => {
     return { ok: false, reason: 'missing-auth' };
   }
 
-  if (normalizedRole === 'driver') {
+  if (DRIVER_PORTAL_ROLES.has(normalizedRole)) {
     await saveDriverFcmToken(normalizedToken, normalizedPlatform);
   } else {
     await userAuthService.saveFcmToken(normalizedToken, normalizedPlatform);

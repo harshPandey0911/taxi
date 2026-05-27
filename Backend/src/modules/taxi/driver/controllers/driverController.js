@@ -3103,32 +3103,6 @@ const resolvePushTokenEntityForRole = async (req) => {
   }
 
   if (
-    role === "driver" &&
-    (entity.approve === false ||
-      String(entity.status || "").toLowerCase() === "pending")
-  ) {
-    throw new ApiError(403, "Driver account is pending approval");
-  }
-
-  if (
-    role === "owner" &&
-    (entity.active === false ||
-      entity.approve === false ||
-      String(entity.status || "").toLowerCase() === "pending")
-  ) {
-    throw new ApiError(403, "Owner account is pending approval");
-  }
-
-  if (
-    role === "bus_driver" &&
-    (entity.active === false ||
-      entity.approve === false ||
-      ["pending", "blocked"].includes(String(entity.status || "").toLowerCase()))
-  ) {
-    throw new ApiError(403, "Bus driver account is pending approval");
-  }
-
-  if (
     role === "service_center" &&
     (entity.active === false ||
       String(entity.status || "").toLowerCase() === "inactive")
