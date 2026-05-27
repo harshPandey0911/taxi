@@ -125,8 +125,8 @@ const LocationMapSection = () => {
     >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-black uppercase tracking-[0.26em] text-slate-400">Map</p>
-          <h3 className="mt-0.5 flex items-baseline gap-1 text-[16px] font-black tracking-tight text-slate-900">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Map</p>
+          <h3 className="mt-0.5 flex items-baseline gap-1 text-[16px] font-semibold text-slate-900">
             <span className="truncate">Pin your location</span>
             <span className="inline-flex" aria-hidden="true">
               {[0, 1, 2].map((dot) => (
@@ -146,14 +146,14 @@ const LocationMapSection = () => {
               ))}
             </span>
           </h3>
-          <p className="mt-0.5 truncate text-[11px] font-bold text-slate-500">{helperText}</p>
+          <p className="mt-0.5 truncate text-[11px] font-medium text-slate-500">{helperText}</p>
         </div>
 
         <motion.button
           type="button"
           whileTap={{ scale: 0.96 }}
           onClick={requestLocation}
-          className="inline-flex items-center gap-2.5 rounded-full border border-white/60 bg-white/95 px-3 py-2 text-[11px] font-black text-slate-800 shadow-[0_8px_16px_-4px_rgba(15,23,42,0.1)] transition-all active:shadow-inner"
+          className="inline-flex items-center gap-2.5 rounded-full border border-white/60 bg-white/95 px-3 py-2 text-[11px] font-semibold text-slate-800 shadow-[0_8px_16px_-4px_rgba(15,23,42,0.1)] transition-all active:shadow-inner"
         >
           <div className="relative">
             <Navigation 
@@ -191,8 +191,8 @@ const LocationMapSection = () => {
             {!HAS_VALID_GOOGLE_MAPS_KEY && (
               <div className="flex h-full w-full items-center justify-center px-5 text-center">
                 <div>
-                  <p className="text-[12px] font-black text-slate-900">Google Maps key missing</p>
-                  <p className="mt-1 text-[11px] font-bold text-slate-500">Add `VITE_GOOGLE_MAPS_API_KEY` in `frontend/.env`.</p>
+                  <p className="text-[12px] font-semibold text-slate-900">Google Maps key missing</p>
+                  <p className="mt-1 text-[11px] font-medium text-slate-500">Add `VITE_GOOGLE_MAPS_API_KEY` in `frontend/.env`.</p>
                 </div>
               </div>
             )}
@@ -200,8 +200,8 @@ const LocationMapSection = () => {
             {HAS_VALID_GOOGLE_MAPS_KEY && loadError && (
               <div className="flex h-full w-full items-center justify-center px-5 text-center">
                 <div>
-                  <p className="text-[12px] font-black text-slate-900">Map failed to load</p>
-                  <p className="mt-1 text-[11px] font-bold text-slate-500">Check your Google Maps browser key restrictions.</p>
+                  <p className="text-[12px] font-semibold text-slate-900">Map failed to load</p>
+                  <p className="mt-1 text-[11px] font-medium text-slate-500">Check your Google Maps browser key restrictions.</p>
                 </div>
               </div>
             )}
@@ -210,7 +210,7 @@ const LocationMapSection = () => {
               <div className="flex h-full w-full items-center justify-center">
                 <div className="flex items-center gap-2 rounded-[16px] bg-white/90 px-4 py-3 shadow-sm">
                   <LoaderCircle size={18} className="animate-spin text-slate-500" />
-                  <span className="text-[12px] font-black text-slate-700">Loading map</span>
+                  <span className="text-[12px] font-medium text-slate-700">Loading map</span>
                 </div>
               </div>
             )}
@@ -336,7 +336,7 @@ const LocationMapSection = () => {
               <button
                 type="button"
                 onClick={requestLocation}
-                className="absolute bottom-2 left-2 z-20 rounded-full border border-white/80 bg-white/90 px-3 py-2 text-[11px] font-black text-slate-700 shadow-sm active:scale-[0.99]"
+                className="absolute bottom-2 left-2 z-20 rounded-full border border-white/80 bg-white/90 px-3 py-2 text-[11px] font-medium text-slate-700 shadow-sm active:scale-[0.99]"
               >
                 Use my location
               </button>

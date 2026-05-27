@@ -32,7 +32,7 @@ const ServiceTile = ({ icon, label, description, path, accentClass, loading }) =
         </div>
 
         <div className="flex flex-col items-center gap-0.5 text-center">
-          <span className="min-h-[24px] text-[10.5px] font-black leading-tight tracking-tight text-slate-900 line-clamp-2 uppercase">
+          <span className="min-h-[24px] text-[10.5px] font-semibold leading-tight text-slate-900 line-clamp-2 uppercase">
             {label}
           </span>
           <span className="sr-only">{description}</span>
@@ -126,12 +126,12 @@ const ServiceGrid = () => {
       >
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.26em] text-slate-400">Services</p>
-            <h2 className="mt-1 text-[18px] font-black tracking-tight text-slate-900">Choose your ride</h2>
-            <p className="mt-0.5 text-[11px] font-bold text-slate-500">Tap to start quickly.</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Services</p>
+            <h2 className="mt-1 text-[18px] font-semibold text-slate-900">Choose your ride</h2>
+            <p className="mt-0.5 text-[11px] font-medium text-slate-500">Tap to start quickly.</p>
           </div>
 
-          <div className="rounded-full border border-white/80 bg-white/90 px-3 py-2 text-[11px] font-black text-slate-600 shadow-sm">
+          <div className="rounded-full border border-white/80 bg-white/90 px-3 py-2 text-[11px] font-medium text-slate-600 shadow-sm">
             {optionCount} {optionLabel}
           </div>
         </div>

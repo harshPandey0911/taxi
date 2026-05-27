@@ -63,7 +63,7 @@ const HeaderGreeting = () => {
             ) : showBrandingSkeleton ? (
               <div className="relative z-10 h-10 min-w-[40px] animate-pulse rounded-full bg-slate-200/90" />
             ) : (
-              <div className="relative z-10 flex h-10 min-w-[40px] items-center justify-center rounded-full bg-slate-900 px-3 text-[10px] font-black uppercase tracking-[0.18em] text-white">
+              <div className="relative z-10 flex h-10 min-w-[40px] items-center justify-center rounded-full bg-slate-900 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-white">
                 {appName.slice(0, 2)}
               </div>
             )}
@@ -81,8 +81,8 @@ const HeaderGreeting = () => {
             <MapPin size={16} className="text-slate-500 transition-colors group-hover:text-slate-700" strokeWidth={2.5} />
 
             <div className="min-w-0 flex-1">
-              <p className="text-[9px] font-black uppercase tracking-[0.22em] text-slate-400">Location</p>
-              <p className="truncate text-[11px] font-black tracking-tight text-slate-900">{locationLabel}</p>
+              <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400">Location</p>
+              <p className="truncate text-[11px] font-medium text-slate-800">{locationLabel}</p>
             </div>
           </motion.button>
         </div>
@@ -141,10 +141,10 @@ const HeaderGreeting = () => {
           className="flex w-full items-center gap-2 rounded-[18px] border border-white/80 bg-white/92 px-3.5 py-3 text-left shadow-[0_12px_26px_rgba(15,23,42,0.06)]"
         >
           <Search size={16} className="text-slate-500" strokeWidth={2.5} />
-          <span className="min-w-0 flex-1 truncate text-[12px] font-bold text-slate-500">
+          <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-slate-500">
             Search destination
           </span>
-          <span className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-600">Go</span>
+          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-600">Go</span>
         </motion.button>
       </motion.div>
     </div>

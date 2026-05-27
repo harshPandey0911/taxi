@@ -122,7 +122,7 @@ const BottomNavbar = () => {
                   transition={{
                     duration: 0.2
                   }}
-                  className={`relative z-20 text-[10px] font-black uppercase tracking-[0.18em] font-['Outfit'] mt-1 transition-colors duration-300 ${
+                  className={`relative z-20 mt-1 font-['Outfit'] text-[10px] font-medium uppercase tracking-[0.12em] transition-colors duration-300 ${
                     isActive ? 'text-white' : 'text-slate-500'
                   }`}
                 >

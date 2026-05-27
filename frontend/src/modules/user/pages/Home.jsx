@@ -570,22 +570,22 @@ const Home = () => {
             className="mx-5 block w-[calc(100%-2.5rem)] overflow-hidden rounded-[32px] border border-emerald-100/50 bg-[linear-gradient(135deg,#ffffff_0%,#f0fdf4_100%)] p-6 text-left shadow-[0_24px_48px_rgba(16,185,129,0.12)]"
           >
             <div className="flex items-center justify-between">
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/50 px-3 py-1 text-[9px] font-black uppercase tracking-[0.15em] text-emerald-700">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/50 px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
                 <ShieldCheck size={12} strokeWidth={3} />
                 Confirmed
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Live Status</span>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-600">Live Status</span>
               </div>
             </div>
 
             <div className="mt-5 flex items-end justify-between">
               <div className="min-w-0">
-                <h2 className="text-[32px] font-black tracking-tight text-slate-950 leading-none">
+                <h2 className="text-[32px] font-semibold tracking-tight text-slate-950 leading-none">
                   {scheduledCountdown}
                 </h2>
-                <p className="mt-2 text-[14px] font-bold text-slate-500">
+                <p className="mt-2 text-[14px] font-medium text-slate-500">
                   {scheduledDateLabel}
                 </p>
               </div>
@@ -603,20 +603,20 @@ const Home = () => {
                   <User size={20} className="text-emerald-600" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-none">Driver & Vehicle</p>
-                  <p className="mt-1 truncate text-[13px] font-black text-slate-900">{driverName} • {vehicleLabel}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 leading-none">Driver & Vehicle</p>
+                  <p className="mt-1 truncate text-[13px] font-semibold text-slate-900">{driverName} • {vehicleLabel}</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-none">Fare</p>
-                <p className="mt-1 text-[13px] font-black text-slate-900">₹{Number(currentRide?.fare || 0).toFixed(0)}</p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 leading-none">Fare</p>
+                <p className="mt-1 text-[13px] font-semibold text-slate-900">₹{Number(currentRide?.fare || 0).toFixed(0)}</p>
               </div>
             </div>
 
             <div className="mt-4 flex items-center gap-3 rounded-2xl bg-slate-950 px-4 py-3.5 text-white shadow-xl shadow-slate-950/20">
               <div className="min-w-0 flex-1">
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40">Trip Route</p>
-                <div className="mt-1 flex items-center gap-2 text-[12px] font-bold">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/40">Trip Route</p>
+                <div className="mt-1 flex items-center gap-2 text-[12px] font-medium">
                   <span className="truncate max-w-[100px] text-white/90">{(currentRide?.pickup || 'Pickup').split(',')[0]}</span>
                   <ChevronRight size={12} className="text-white/30" />
                   <span className="truncate max-w-[100px] text-emerald-400">{(currentRide?.drop || 'Drop').split(',')[0]}</span>
@@ -642,15 +642,15 @@ const Home = () => {
                   <img src={currentRideIcon} alt="" className="h-full w-full object-contain scale-110" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
                     {rideStage === 'end_requested' ? 'Review Pending' : 'Live Rental'}
                   </p>
-                  <h2 className="text-[24px] font-black tracking-tight text-slate-900 leading-none mt-1">
+                  <h2 className="mt-1 text-[24px] font-semibold tracking-tight text-slate-900 leading-none">
                     {rentalTimerLabel}
                   </h2>
                   <div className="flex items-center gap-1.5 mt-1.5">
                     <div className="h-1.5 w-1.5 rounded-full bg-orange-500 animate-pulse" />
-                    <p className="text-[12px] font-black text-slate-900">
+                    <p className="text-[12px] font-semibold text-slate-900">
                       {currentRide.vehicle?.name || 'Assigned Vehicle'}
                     </p>
                   </div>
@@ -659,8 +659,8 @@ const Home = () => {
               
               <div className="text-right space-y-2.5">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Current Fare</p>
-                  <p className="text-[18px] font-black text-slate-900 tracking-tight">Rs {rentalCurrentCharge.toFixed(0)}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-600">Current Fare</p>
+                  <p className="text-[18px] font-semibold text-slate-900 tracking-tight">Rs {rentalCurrentCharge.toFixed(0)}</p>
                 </div>
                 <button
                   type="button"
@@ -669,7 +669,7 @@ const Home = () => {
                     handleEndRide();
                   }}
                   disabled={endingRide || rideStage === 'end_requested'}
-                  className="bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded-xl shadow-[0_8px_16px_rgba(15,23,42,0.2)] active:scale-95 disabled:opacity-50 disabled:grayscale transition-all"
+                  className="rounded-xl bg-slate-900 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-white shadow-[0_8px_16px_rgba(15,23,42,0.2)] transition-all active:scale-95 disabled:opacity-50 disabled:grayscale"
                 >
                   {endingRide ? 'Ending...' : rideStage === 'end_requested' ? 'Pending' : 'End Ride'}
                 </button>
@@ -707,13 +707,13 @@ const Home = () => {
             <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-white via-white/40 to-transparent" />
             <div className="relative z-10 flex h-full items-start justify-center px-6 pt-10 text-left">
               <div className="flex max-w-[340px] flex-col items-start px-2 py-2 -translate-x-4">
-                <div className="text-[48px] font-black tracking-[-0.04em] text-[#FFB300] drop-shadow-[0_10px_30px_rgba(255,179,0,0.4)] leading-none">
+                <div className="text-[48px] font-semibold tracking-[-0.03em] text-[#FFB300] drop-shadow-[0_10px_30px_rgba(255,179,0,0.4)] leading-none">
                   Rydon <span className="text-slate-900">24</span>
                 </div>
-                <div className="mt-2 text-[14px] font-sans italic font-black tracking-wide text-slate-800">
+                <div className="mt-2 text-[14px] font-sans italic font-medium tracking-[0.04em] text-slate-800">
                   Your Trusted Journey Partner
                 </div>
-                <div className="mt-2 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">
+                <div className="mt-2 text-[11px] font-medium uppercase tracking-[0.14em] text-slate-400">
                   Made for Everyone, Crafted for You.
                   <img
                     src="/flag-in.svg"
@@ -764,7 +764,7 @@ const Home = () => {
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-orange-500 animate-pulse" />
-                <p className="text-[9px] font-black uppercase tracking-[0.22em] text-orange-600">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-orange-600">
                   {isScheduledAcceptedRide
                     ? 'Scheduled ride ready'
                     : serviceType === 'parcel'
@@ -774,11 +774,11 @@ const Home = () => {
                         : 'Current Ride'}
                 </p>
               </div>
-              <p className="mt-0.5 truncate text-[14px] font-black leading-tight text-slate-900">
+              <p className="mt-0.5 truncate text-[14px] font-semibold leading-tight text-slate-900">
                 {rideStageContextLabel}
               </p>
               {isScheduledAcceptedRide ? (
-                <div className="mt-1 flex items-center gap-2 text-[10px] font-black text-slate-600">
+                <div className="mt-1 flex items-center gap-2 text-[10px] font-medium text-slate-600">
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">
                     <CalendarClock size={11} />
                     {scheduledDateLabel}
@@ -790,16 +790,16 @@ const Home = () => {
                   ) : null}
                 </div>
               ) : null}
-              <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[10px] font-bold text-slate-500">
+              <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[10px] font-medium text-slate-500">
                 <MapPin size={12} className="shrink-0 text-emerald-500" strokeWidth={2.5} />
                 <span className="truncate">{currentRide.pickup || 'Pickup location'}</span>
               </div>
-              <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[10px] font-bold text-slate-500">
+              <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[10px] font-medium text-slate-500">
                 <MapPin size={12} className="shrink-0 text-orange-500" strokeWidth={2.5} />
                 <span className="truncate">{currentRide.drop || 'Drop location'}</span>
               </div>
               {serviceType === 'rental' ? (
-                <div className="mt-1 flex items-center gap-2 text-[10px] font-black text-slate-600">
+                <div className="mt-1 flex items-center gap-2 text-[10px] font-medium text-slate-600">
                   <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1">
                     <Clock3 size={11} className="text-slate-500" />
                     {rentalTimerLabel}
@@ -809,7 +809,7 @@ const Home = () => {
                   </span>
                 </div>
               ) : isScheduledAcceptedRide ? (
-                <div className="mt-1 flex items-center gap-2 text-[10px] font-black text-slate-600">
+                <div className="mt-1 flex items-center gap-2 text-[10px] font-medium text-slate-600">
                   <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-1 text-sky-700">
                     <User size={11} />
                     {driverName}
@@ -821,7 +821,7 @@ const Home = () => {
               ) : null}
             </div>
             <div className="shrink-0 text-right flex flex-col items-end gap-1">
-              <p className="text-[11px] font-black text-slate-900 px-2 py-0.5 rounded-lg bg-slate-100">
+              <p className="rounded-lg bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-900">
                 Rs {Number(serviceType === 'rental' ? rentalCurrentCharge : currentRide.fare || 0).toFixed(0)}
               </p>
               <div className="mt-1 inline-flex h-8 w-8 items-center justify-center rounded-[12px] bg-slate-900 text-white shadow-md">
