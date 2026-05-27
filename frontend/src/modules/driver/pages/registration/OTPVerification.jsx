@@ -53,6 +53,11 @@ const getPostLoginRoute = (role, driver, routePrefix) => {
     return '/taxi/driver/home';
 };
 
+const syncPushTokens = () => {
+    window.__flushNativeFcmToken?.().catch?.(() => {});
+    window.__registerBrowserFcmToken?.({ interactive: true }).catch?.(() => {});
+};
+
 const OTPVerification = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -191,6 +196,7 @@ const OTPVerification = () => {
                 if (token) {
                     const normalizedRole = normalizeDriverRole(role);
                     persistDriverAuthSession({ token, role: normalizedRole });
+                    syncPushTokens();
                 }
                 clearDriverRegistrationSession();
                 const normalizedRole = normalizeDriverRole(role);
