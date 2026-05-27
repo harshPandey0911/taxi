@@ -38,8 +38,11 @@ const Signup = () => {
     governmentIdProof: {
       type: 'other',
       imageUrl: '',
+      backImageUrl: '',
       fileName: '',
+      backFileName: '',
       uploadedAt: null,
+      backUploadedAt: null,
     },
     referralCode: String(location.state?.referralCode || referralCodeFromQuery || preservedReferralCode || '').trim().toUpperCase(),
   });
@@ -86,7 +89,38 @@ const Signup = () => {
     return formData.governmentIdProof?.imageUrl || '';
   }, [formData.governmentIdProof?.imageUrl]);
 
-  const hasGovernmentIdProof = Boolean(formData.governmentIdProof?.type && formData.governmentIdProof?.imageUrl);
+  const idBackPreviewUrl = useMemo(() => {
+    return formData.governmentIdProof?.backImageUrl || '';
+  }, [formData.governmentIdProof?.backImageUrl]);
+
+  const governmentIdUploadItems = useMemo(
+    () => [
+      {
+        side: 'front',
+        label: 'Front Image',
+        preview: idPreviewUrl,
+        fileName: formData.governmentIdProof?.fileName || '',
+      },
+      {
+        side: 'back',
+        label: 'Back Image',
+        preview: idBackPreviewUrl,
+        fileName: formData.governmentIdProof?.backFileName || '',
+      },
+    ],
+    [
+      formData.governmentIdProof?.backFileName,
+      formData.governmentIdProof?.fileName,
+      idBackPreviewUrl,
+      idPreviewUrl,
+    ],
+  );
+
+  const hasGovernmentIdProof = Boolean(
+    formData.governmentIdProof?.type &&
+      formData.governmentIdProof?.imageUrl &&
+      formData.governmentIdProof?.backImageUrl,
+  );
 
   const readFileAsDataUrl = (file) =>
     new Promise((resolve, reject) => {
@@ -152,7 +186,7 @@ const Signup = () => {
     }
   };
 
-  const handleGovernmentIdChange = async (e) => {
+  const handleGovernmentIdChange = async (e, side = 'front') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -172,9 +206,17 @@ const Signup = () => {
         ...prev,
         governmentIdProof: {
           ...prev.governmentIdProof,
-          imageUrl,
-          fileName: file.name || `${prev.governmentIdProof.type}-proof`,
-          uploadedAt: new Date().toISOString(),
+          ...(side === 'back'
+            ? {
+                backImageUrl: imageUrl,
+                backFileName: file.name || `${prev.governmentIdProof.type}-proof-back`,
+                backUploadedAt: new Date().toISOString(),
+              }
+            : {
+                imageUrl,
+                fileName: file.name || `${prev.governmentIdProof.type}-proof-front`,
+                uploadedAt: new Date().toISOString(),
+              }),
         },
       }));
     } catch (err) {
@@ -183,9 +225,17 @@ const Signup = () => {
         ...prev,
         governmentIdProof: {
           ...prev.governmentIdProof,
-          imageUrl: '',
-          fileName: '',
-          uploadedAt: null,
+          ...(side === 'back'
+            ? {
+                backImageUrl: '',
+                backFileName: '',
+                backUploadedAt: null,
+              }
+            : {
+                imageUrl: '',
+                fileName: '',
+                uploadedAt: null,
+              }),
         },
       }));
     } finally {
@@ -476,61 +526,76 @@ const Signup = () => {
           <div className="space-y-3">
             <label className="ml-1 text-xs font-bold uppercase tracking-widest text-slate-600">Government ID Proof *</label>
             <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <div className="h-32 w-full overflow-hidden rounded-xl bg-slate-50 border border-dashed border-slate-300 sm:w-36 flex items-center justify-center">
-                  {idPreviewUrl ? (
-                    <img src={idPreviewUrl} alt="Government ID proof" className="h-full w-full object-cover" />
-                  ) : (
-                    <FileText size={34} className="text-slate-400" />
-                  )}
-                </div>
-                <div className="flex-1 space-y-2">
-                  <p className="text-xs font-bold text-slate-700">Upload a clear photo of your government ID proof.</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <label className={`relative flex h-11 items-center justify-center gap-2 rounded-xl border text-[11px] font-bold uppercase tracking-wider transition-all ${
-                      idUploading
-                        ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
-                        : 'cursor-pointer border-slate-200 bg-white text-slate-700 active:scale-[0.99]'
-                    }`}>
-                      <ImagePlus size={14} />
-                      Gallery
-                      <input
-                        type="file"
-                        accept="image/*"
-                        disabled={idUploading}
-                        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                        aria-label="Upload government ID from gallery"
-                        onChange={handleGovernmentIdChange}
-                      />
-                    </label>
-                    <label className={`relative flex h-11 items-center justify-center gap-2 rounded-xl border text-[11px] font-bold uppercase tracking-wider transition-all ${
-                      idUploading
-                        ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
-                        : 'cursor-pointer border-slate-900 bg-slate-950 text-white active:scale-[0.99]'
-                    }`}>
-                      <Camera size={14} />
-                      Camera
-                      <input
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        disabled={idUploading}
-                        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                        aria-label="Capture government ID photo"
-                        onChange={handleGovernmentIdChange}
-                      />
-                    </label>
-                  </div>
-                  {idPreviewUrl && (
-                    <div className="flex items-center gap-2 text-[11px] font-bold text-emerald-600">
-                      <ShieldCheck size={14} />
-                      Government ID proof uploaded
+              <p className="mb-3 text-xs font-bold text-slate-700">Upload clear front and back photos of your government ID proof.</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {governmentIdUploadItems.map((item) => (
+                  <div key={item.side} className="rounded-2xl border border-slate-100 bg-slate-50/60 p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{item.label}</p>
+                      <span className="rounded-full bg-slate-200 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-600">
+                        Required
+                      </span>
                     </div>
-                  )}
-                  {idUploading && <p className="text-[11px] font-bold text-slate-500">Uploading ID proof...</p>}
-                  {idError && <p className="text-[11px] font-bold text-red-500">{idError}</p>}
-                </div>
+                    <div className="h-32 w-full overflow-hidden rounded-xl bg-white border border-dashed border-slate-300 flex items-center justify-center">
+                      {item.preview ? (
+                        <img src={item.preview} alt={`Government ID ${item.side}`} className="h-full w-full object-cover" />
+                      ) : (
+                        <FileText size={34} className="text-slate-400" />
+                      )}
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <label className={`relative flex h-11 items-center justify-center gap-2 rounded-xl border text-[11px] font-bold uppercase tracking-wider transition-all ${
+                        idUploading
+                          ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
+                          : 'cursor-pointer border-slate-200 bg-white text-slate-700 active:scale-[0.99]'
+                      }`}>
+                        <ImagePlus size={14} />
+                        Gallery
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={idUploading}
+                          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                          aria-label={`Upload government ID ${item.side} from gallery`}
+                          onChange={(event) => handleGovernmentIdChange(event, item.side)}
+                        />
+                      </label>
+                      <label className={`relative flex h-11 items-center justify-center gap-2 rounded-xl border text-[11px] font-bold uppercase tracking-wider transition-all ${
+                        idUploading
+                          ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
+                          : 'cursor-pointer border-slate-900 bg-slate-950 text-white active:scale-[0.99]'
+                      }`}>
+                        <Camera size={14} />
+                        Camera
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          disabled={idUploading}
+                          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                          aria-label={`Capture government ID ${item.side} photo`}
+                          onChange={(event) => handleGovernmentIdChange(event, item.side)}
+                        />
+                      </label>
+                    </div>
+                    {item.preview && (
+                      <>
+                        <div className="mt-2 flex items-center gap-2 text-[11px] font-bold text-emerald-600">
+                          <ShieldCheck size={14} />
+                          {item.label} uploaded
+                        </div>
+                        {item.fileName && (
+                          <p className="mt-1 truncate text-[11px] font-medium text-slate-500">
+                            {item.fileName}
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ))}
               </div>
+              {idUploading && <p className="mt-3 text-[11px] font-bold text-slate-500">Uploading ID proof...</p>}
+              {idError && <p className="mt-3 text-[11px] font-bold text-red-500">{idError}</p>}
             </div>
           </div>
 
@@ -581,7 +646,7 @@ const Signup = () => {
               <li className="flex items-center gap-2.5 text-xs font-semibold">
                 <span className={`w-2 h-2 rounded-full ${hasGovernmentIdProof ? 'bg-emerald-500' : 'bg-amber-400 animate-pulse'}`} />
                 <span className={hasGovernmentIdProof ? 'text-slate-400 line-through font-normal' : 'text-slate-700'}>
-                  Upload Government ID Proof
+                  Upload Government ID Front & Back
                 </span>
               </li>
             </ul>

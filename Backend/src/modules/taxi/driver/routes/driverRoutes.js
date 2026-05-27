@@ -104,7 +104,7 @@ driverRouter.post(
 );
 driverRouter.get(
   "/me",
-  authenticate(["driver", "owner", "bus_driver", "service_center", "service_center_staff"], { allowPending: true }),
+  authenticate(["driver", "owner", "pooling_driver", "bus_driver", "service_center", "service_center_staff"], { allowPending: true }),
   asyncHandler(getCurrentDriver),
 );
 driverRouter.patch(

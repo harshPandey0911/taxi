@@ -150,6 +150,7 @@ const RideRequests = lazy(() => import('./modules/driver/pages/RideRequests'));
 const DriverIncentives = lazy(() => import('./modules/driver/pages/DriverIncentives'));
 const BusDriverHome = lazy(() => import('./modules/driver/pages/BusDriverHome'));
 const BusDriverLiveRoute = lazy(() => import('./modules/driver/pages/BusDriverLiveRoute'));
+const PoolingDriverDashboard = lazy(() => import('./modules/driver/pages/PoolingDriverDashboard'));
 const PortalSupportPage = lazy(() => import('./modules/driver/pages/PortalSupportPage'));
 
 // Driver Module - Settings
@@ -997,6 +998,7 @@ function App() {
                 <Route path="home" element={<DriverHome />} />
                 <Route path="bus-home" element={<BusDriverHome />} />
                 <Route path="bus-home/live-route" element={<BusDriverLiveRoute />} />
+                <Route path="pooling" element={<PoolingDriverDashboard />} />
                 <Route path="dashboard" element={<DriverHome />} />
                 <Route path="active-trip" element={<ActiveTrip />} />
                 <Route path="chat" element={<Chat />} />

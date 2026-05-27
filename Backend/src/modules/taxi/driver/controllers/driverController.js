@@ -1831,6 +1831,46 @@ const serializeServiceCenterStaffProfile = (staff = {}, center = null) => ({
   },
 });
 
+const serializePoolingDriverProfile = (vehicle = {}) => ({
+  id: vehicle._id,
+  name: vehicle.driverName || "Pooling Driver",
+  phone: vehicle.driverPhone || "",
+  email: "",
+  profileImage: "",
+  gender: "",
+  vehicleType: vehicle.vehicleType || "sedan",
+  vehicleTypeId: null,
+  vehicleIconType: vehicle.vehicleType || "sedan",
+  vehicleIconUrl: Array.isArray(vehicle.images) && vehicle.images.length > 0 ? vehicle.images[0] : "",
+  vehicleMake: vehicle.name || "",
+  vehicleModel: vehicle.vehicleModel || "",
+  registerFor: "pooling",
+  vehicleNumber: vehicle.vehicleNumber || "",
+  vehicleColor: vehicle.color || "",
+  vehicleImage: Array.isArray(vehicle.images) && vehicle.images.length > 0 ? vehicle.images[0] : "",
+  city: "",
+  approve: true,
+  status: vehicle.status || "active",
+  rating: 0,
+  wallet: {
+    balance: 0,
+    currency: "INR",
+  },
+  referralCode: "",
+  deletionRequest: { status: "none" },
+  isOnline: false,
+  isOnRide: false,
+  onlineSelfie: {},
+  location: null,
+  zoneId: null,
+  documents: {},
+  emergencyContacts: [],
+  poolingVehicle: vehicle,
+  onboarding: {
+    role: "pooling_driver",
+  },
+});
+
 const serializeServiceCenterStaff = (staff = {}, bookingCount = 0) => ({
   id: String(staff._id || ""),
   _id: staff._id,
@@ -2787,6 +2827,20 @@ export const getCurrentDriver = async (req, res) => {
     res.json({
       success: true,
       data: await serializeBusDriverProfile(busDriver),
+    });
+    return;
+  }
+
+  if (String(req.auth?.role || "").toLowerCase() === "pooling_driver") {
+    const poolingVehicle = await PoolingVehicle.findById(req.auth.sub).lean();
+
+    if (!poolingVehicle) {
+      throw new ApiError(404, "Pooling driver not found");
+    }
+
+    res.json({
+      success: true,
+      data: serializePoolingDriverProfile(poolingVehicle),
     });
     return;
   }

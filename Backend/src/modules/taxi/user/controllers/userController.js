@@ -1302,8 +1302,11 @@ const toUserPayload = (user, options = {}) => ({
   governmentIdProof: user.governmentIdProof || {
     type: '',
     imageUrl: '',
+    backImageUrl: '',
     fileName: '',
+    backFileName: '',
     uploadedAt: null,
+    backUploadedAt: null,
   },
   referralCode: user.referralCode || '',
   referralCount: Number(user.referralCount || 0),
@@ -1332,14 +1335,19 @@ const VALID_GOVERNMENT_ID_TYPES = new Set(['aadhaar', 'voter_id', 'passport', 'd
 const normalizeGovernmentIdProof = (input = {}, { required = false } = {}) => {
   const type = toCleanString(input.type).toLowerCase();
   const imageUrl = toCleanString(input.imageUrl || input.url || input.secureUrl);
+  const backImageUrl = toCleanString(input.backImageUrl || input.backUrl || input.backSecureUrl);
   const fileName = toCleanString(input.fileName || input.name || 'government-id');
+  const backFileName = toCleanString(input.backFileName || input.backName || 'government-id-back');
 
-  if (!type && !imageUrl && !required) {
+  if (!type && !imageUrl && !backImageUrl && !required) {
     return {
       type: '',
       imageUrl: '',
+      backImageUrl: '',
       fileName: '',
+      backFileName: '',
       uploadedAt: null,
+      backUploadedAt: null,
     };
   }
 
@@ -1348,14 +1356,25 @@ const normalizeGovernmentIdProof = (input = {}, { required = false } = {}) => {
   }
 
   if (!imageUrl) {
-    throw new ApiError(400, 'Government ID proof image is required');
+    throw new ApiError(400, 'Government ID front image is required');
+  }
+
+  if (required && !backImageUrl) {
+    throw new ApiError(400, 'Government ID back image is required');
   }
 
   return {
     type,
     imageUrl,
+    backImageUrl,
     fileName: fileName || `${type}-proof`,
+    backFileName: backFileName || `${type}-proof-back`,
     uploadedAt: input.uploadedAt ? new Date(input.uploadedAt) : new Date(),
+    backUploadedAt: backImageUrl
+      ? input.backUploadedAt
+        ? new Date(input.backUploadedAt)
+        : new Date()
+      : null,
   };
 };
 

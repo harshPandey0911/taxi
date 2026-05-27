@@ -111,12 +111,26 @@ const userSchema = new mongoose.Schema(
         default: '',
         trim: true,
       },
+      backImageUrl: {
+        type: String,
+        default: '',
+        trim: true,
+      },
       fileName: {
         type: String,
         default: '',
         trim: true,
       },
+      backFileName: {
+        type: String,
+        default: '',
+        trim: true,
+      },
       uploadedAt: {
+        type: Date,
+        default: null,
+      },
+      backUploadedAt: {
         type: Date,
         default: null,
       },

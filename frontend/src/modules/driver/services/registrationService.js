@@ -2,7 +2,7 @@ import api from "../../../shared/api/axiosInstance";
 
 const STORAGE_KEY = "driverRegistrationSession";
 const DRIVER_AUTH_KEYS = ["token", "driverToken", "driverInfo", "role", "driverRole", "chatRole"];
-const DRIVER_PORTAL_ROLES = ["driver", "owner", "bus_driver", "service_center", "service_center_staff"];
+const DRIVER_PORTAL_ROLES = ["driver", "owner", "pooling_driver", "bus_driver", "service_center", "service_center_staff"];
 const isDataUrl = (value) => /^data:/i.test(String(value || "").trim());
 
 const sanitizeStoredDocumentValue = (value) => {
@@ -122,6 +122,9 @@ export const normalizeDriverPortalRole = (role) => {
   if (!normalized) return "";
 
   if (normalized === "owner") return "owner";
+  if (normalized === "pooling_driver" || normalized === "pooling-driver" || normalized === "poolingdriver" || normalized === "pooling") {
+    return "pooling_driver";
+  }
   if (normalized === "service_center" || normalized === "service-center" || normalized === "servicecenter") {
     return "service_center";
   }

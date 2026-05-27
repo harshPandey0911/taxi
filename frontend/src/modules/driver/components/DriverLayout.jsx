@@ -92,6 +92,8 @@ const getAuthenticatedDriverHome = (pathname = '') => (
             ? '/taxi/driver/service-center'
         : getAuthenticatedRole() === 'bus_driver'
             ? '/taxi/driver/bus-home'
+        : getAuthenticatedRole() === 'pooling_driver'
+            ? '/taxi/driver/pooling'
             : '/taxi/driver/home'
 );
 
