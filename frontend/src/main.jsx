@@ -34,9 +34,36 @@ if (typeof window !== 'undefined') {
     : [];
 
   if (typeof window.__saveNativeFcmToken !== 'function') {
-    window.__saveNativeFcmToken = (token, role, platform = 'mobile') => {
-      window.__pendingNativeFcmCalls.push({ token, role, platform });
+    const queueNativeFcmCall = (tokenOrPayload, role, platform = 'android') => {
+      const payload =
+        typeof tokenOrPayload === 'object' && tokenOrPayload !== null
+          ? tokenOrPayload
+          : { token: tokenOrPayload, role, platform };
+
+      window.__pendingNativeFcmCalls.push(payload);
       return { ok: false, reason: 'bridge-not-ready' };
+    };
+
+    window.__saveNativeFcmToken = (token, role, platform = 'android') => {
+      return queueNativeFcmCall(token, role, platform);
+    };
+    window.__setNativeFcmToken = (token, role, platform = 'android') => {
+      return queueNativeFcmCall(token, role, platform);
+    };
+    window.setNativeFcmToken = (token, role, platform = 'android') => {
+      return queueNativeFcmCall(token, role, platform);
+    };
+    window.onNativeFcmToken = (token, role, platform = 'android') => {
+      return queueNativeFcmCall(token, role, platform);
+    };
+    window.onFcmTokenReceived = (token, role, platform = 'android') => {
+      return queueNativeFcmCall(token, role, platform);
+    };
+    window.saveFcmToken = (token, role, platform = 'android') => {
+      return queueNativeFcmCall(token, role, platform);
+    };
+    window.setFcmToken = (token, role, platform = 'android') => {
+      return queueNativeFcmCall(token, role, platform);
     };
   }
 }

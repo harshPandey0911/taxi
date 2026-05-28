@@ -8,6 +8,10 @@ const NATIVE_FCM_GLOBAL_KEYS = [
   '__nativeFcmToken',
   '__rydon24NativeFcmToken',
   '__fcmToken',
+  'nativeFcmToken',
+  'fcmToken',
+  '__firebaseToken',
+  'firebaseToken',
 ];
 const DRIVER_PORTAL_ROLES = new Set([
   'driver',
@@ -138,17 +142,53 @@ const persistDebugState = (payload) => {
   } catch {}
 };
 
-const normalizeBridgePayload = (payload = {}) => {
-  if (!payload || typeof payload !== 'object') {
+const normalizeBridgePayload = (payload = {}, fallbackPlatform = 'android') => {
+  if (!payload) {
     return null;
   }
 
+  if (typeof payload === 'string') {
+    const trimmedPayload = payload.trim();
+    if (!trimmedPayload) {
+      return null;
+    }
+
+    if (trimmedPayload.startsWith('{') || trimmedPayload.startsWith('[')) {
+      try {
+        return normalizeBridgePayload(JSON.parse(trimmedPayload), fallbackPlatform);
+      } catch {
+        // Fall through and treat the raw string as the token itself.
+      }
+    }
+
+    return {
+      token: trimmedPayload,
+      role: '',
+      platform: fallbackPlatform,
+    };
+  }
+
+  if (typeof payload !== 'object') {
+    return null;
+  }
+
+  const nestedPayload =
+    payload.data && typeof payload.data === 'object'
+      ? payload.data
+      : payload.detail && typeof payload.detail === 'object'
+        ? payload.detail
+        : payload;
+
   const token = String(
-    payload.token ||
-    payload.fcmToken ||
-    payload.fcm_token ||
-    payload.registrationToken ||
-    payload.nativeFcmToken ||
+    nestedPayload.token ||
+    nestedPayload.fcmToken ||
+    nestedPayload.fcm_token ||
+    nestedPayload.registrationToken ||
+    nestedPayload.nativeFcmToken ||
+    nestedPayload.deviceToken ||
+    nestedPayload.firebaseToken ||
+    nestedPayload.fcm ||
+    nestedPayload.value ||
     '',
   ).trim();
 
@@ -158,8 +198,21 @@ const normalizeBridgePayload = (payload = {}) => {
 
   return {
     token,
-    role: String(payload.role || payload.userRole || payload.accountRole || '').trim(),
-    platform: String(payload.platform || payload.devicePlatform || payload.sourcePlatform || 'mobile').trim() || 'mobile',
+    role: String(
+      nestedPayload.role ||
+      nestedPayload.userRole ||
+      nestedPayload.accountRole ||
+      nestedPayload.portalRole ||
+      nestedPayload.accountType ||
+      '',
+    ).trim(),
+    platform: String(
+      nestedPayload.platform ||
+      nestedPayload.devicePlatform ||
+      nestedPayload.sourcePlatform ||
+      fallbackPlatform ||
+      'android',
+    ).trim() || 'android',
   };
 };
 
@@ -239,13 +292,18 @@ const flushPendingRegistration = async () => {
 export const installNativeFcmBridge = () => {
   const processQueuedCalls = async (queuedCalls = []) => {
     for (const queuedCall of queuedCalls) {
+      const normalizedCall = normalizeBridgePayload(queuedCall);
+      if (!normalizedCall) {
+        continue;
+      }
+
       try {
-        await submitFcmToken(queuedCall || {});
+        await submitFcmToken(normalizedCall);
       } catch (error) {
         savePendingRegistration({
-          token: queuedCall?.token,
-          role: inferRole(queuedCall?.role),
-          platform: queuedCall?.platform || 'mobile',
+          token: normalizedCall.token,
+          role: inferRole(normalizedCall.role),
+          platform: normalizedCall.platform || 'android',
         });
       }
     }
@@ -264,19 +322,50 @@ export const installNativeFcmBridge = () => {
     await processQueuedCalls(globalPayloads);
   };
 
-  const handleNativeFcmToken = async (token, role, platform = 'mobile') => {
+  const queueNativePayload = (payload) => {
+    const normalizedPayload = normalizeBridgePayload(payload);
+    if (!normalizedPayload) {
+      persistDebugState({ ok: false, reason: 'invalid-native-payload' });
+      return null;
+    }
+
+    window.__pendingNativeFcmCalls = Array.isArray(window.__pendingNativeFcmCalls)
+      ? window.__pendingNativeFcmCalls
+      : [];
+
+    window.__pendingNativeFcmCalls.push(normalizedPayload);
+    return normalizedPayload;
+  };
+
+  const handleNativeFcmToken = async (tokenOrPayload, role, platform = 'android') => {
+    const normalizedPayload = normalizeBridgePayload(
+      typeof tokenOrPayload === 'object' && tokenOrPayload !== null
+        ? tokenOrPayload
+        : { token: tokenOrPayload, role, platform },
+      platform || 'android',
+    );
+
+    if (!normalizedPayload) {
+      persistDebugState({ ok: false, reason: 'invalid-native-payload' });
+      return { ok: false, reason: 'invalid-native-payload' };
+    }
+
     try {
-      const result = await submitFcmToken({ token, role, platform });
+      const result = await submitFcmToken(normalizedPayload);
       console.info('[native-fcm-bridge] token registration result', result);
       return result;
     } catch (error) {
       console.error('[native-fcm-bridge] token registration error', error);
-      savePendingRegistration({ token, role: inferRole(role), platform });
+      savePendingRegistration({
+        token: normalizedPayload.token,
+        role: inferRole(normalizedPayload.role),
+        platform: normalizedPayload.platform || 'android',
+      });
       persistDebugState({
         ok: false,
         reason: error?.message || 'unknown-error',
-        role: inferRole(role),
-        platform: String(platform || 'mobile').trim().toLowerCase() || 'mobile',
+        role: inferRole(normalizedPayload.role),
+        platform: String(normalizedPayload.platform || 'android').trim().toLowerCase() || 'android',
       });
       return { ok: false, reason: error?.message || 'unknown-error' };
     }
@@ -285,6 +374,10 @@ export const installNativeFcmBridge = () => {
   window.__saveNativeFcmToken = handleNativeFcmToken;
   window.__setNativeFcmToken = handleNativeFcmToken;
   window.setNativeFcmToken = handleNativeFcmToken;
+  window.onNativeFcmToken = handleNativeFcmToken;
+  window.onFcmTokenReceived = handleNativeFcmToken;
+  window.saveFcmToken = handleNativeFcmToken;
+  window.setFcmToken = handleNativeFcmToken;
 
   window.__flushNativeFcmToken = async () => {
     const result = await flushPendingRegistration();
@@ -307,19 +400,15 @@ export const installNativeFcmBridge = () => {
   const handleMessageEvent = (event) => {
     try {
       const rawData = event?.data;
-      const parsedData = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
-      const normalizedPayload = normalizeBridgePayload(parsedData);
+      const normalizedPayload = normalizeBridgePayload(rawData);
 
       if (!normalizedPayload) {
         return;
       }
 
-      window.__pendingNativeFcmCalls = Array.isArray(window.__pendingNativeFcmCalls)
-        ? window.__pendingNativeFcmCalls
-        : [];
-
-      window.__pendingNativeFcmCalls.push(normalizedPayload);
-      retryPending();
+      if (queueNativePayload(normalizedPayload)) {
+        retryPending();
+      }
     } catch {}
   };
 
