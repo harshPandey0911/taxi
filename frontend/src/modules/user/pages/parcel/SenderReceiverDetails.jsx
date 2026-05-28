@@ -968,8 +968,12 @@ const SenderReceiverDetails = () => {
   const [drop, setDrop] = useState(() => parcelState.drop || '');
   const [pickupCoords, setPickupCoords] = useState(() => parcelState.pickupCoords || getCoords(parcelState.pickup || '', [75.8577, 22.7196]));
   const [dropCoords, setDropCoords] = useState(() => parcelState.dropCoords || (parcelState.drop ? getCoords(parcelState.drop || '') : null));
-  const [activeInput, setActiveInput] = useState(() => (location.state?.editPickup ? 'pickup' : 'drop'));
-  const [activeMapPicker, setActiveMapPicker] = useState(null);
+  const [activeInput, setActiveInput] = useState(() => {
+    if (location.state?.activeInput === 'pickup' || location.state?.editPickup) {
+      return 'pickup';
+    }
+    return 'drop';
+  });
   const [isContactSheetOpen, setIsContactSheetOpen] = useState(false);
   const [isLocatingPickup, setIsLocatingPickup] = useState(false);
   const [errors, setErrors] = useState({});
@@ -1277,6 +1281,27 @@ const SenderReceiverDetails = () => {
 
   const clearPhoneError = (key, value) => {
     validatePhoneField(key, value);
+  };
+
+  const openSharedLocationPicker = (targetInput) => {
+    navigate(`${routePrefix}/ride/select-location`, {
+      state: {
+        ...parcelState,
+        flow: 'parcel',
+        returnTo: `${routePrefix}/parcel/details`,
+        openMapPicker: true,
+        activeInput: targetInput,
+        editPickup: targetInput === 'pickup',
+        pickup,
+        drop,
+        pickupCoords,
+        dropCoords,
+        senderName,
+        senderMobile,
+        receiverName,
+        receiverMobile,
+      },
+    });
   };
 
   const resolveAddressFromCoords = useEffectEvent((position) =>
@@ -1598,34 +1623,6 @@ const SenderReceiverDetails = () => {
 
   return (
     <div className="relative mx-auto flex min-h-screen max-w-lg flex-col overflow-x-hidden bg-[linear-gradient(180deg,#f8fbff_0%,#f7f9fc_100%)] font-sans">
-      <MapPickerSheet
-        open={activeMapPicker === 'pickup'}
-        title="Set Pickup Location"
-        value={pickup}
-        initialCoords={pickupCoords}
-        confirmLabel="Confirm Pickup"
-        onClose={() => setActiveMapPicker(null)}
-        onConfirm={(coords, address) => {
-          setPickupCoords(coords);
-          setPickup(address || formatCoordLabel(coords));
-          clearError('pickup');
-          setActiveMapPicker(null);
-        }}
-      />
-      <MapPickerSheet
-        open={activeMapPicker === 'drop'}
-        title="Set Delivery Location"
-        value={drop}
-        initialCoords={dropCoords}
-        confirmLabel="Confirm Drop"
-        onClose={() => setActiveMapPicker(null)}
-        onConfirm={(coords, address) => {
-          setDropCoords(coords);
-          setDrop(address || formatCoordLabel(coords));
-          clearError('drop');
-          setActiveMapPicker(null);
-        }}
-      />
       <ContactDetailsSheet
         open={isContactSheetOpen}
         onClose={() => setIsContactSheetOpen(false)}
@@ -1783,7 +1780,7 @@ const SenderReceiverDetails = () => {
         {/* Action Pills */}
         <div className="relative z-10 flex gap-3 my-5">
           <button
-            onClick={() => setActiveMapPicker(activeInput)}
+            onClick={() => openSharedLocationPicker(activeInput)}
             className="flex-1 flex items-center justify-center gap-2 bg-white border border-slate-100 rounded-2xl py-3.5 shadow-sm hover:shadow-md hover:border-slate-200 active:scale-95 transition-all text-[13px] font-bold text-slate-800 group"
           >
             <MapPin size={16} className="text-blue-600 group-hover:scale-110 transition-transform" strokeWidth={2.5} />

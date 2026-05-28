@@ -148,6 +148,10 @@ const SelectLocation = () => {
   const location = useLocation();
   const routeState = location.state || {};
   const serviceLocationId = routeState.service_location_id || routeState.serviceLocationId || '';
+  const routeActiveInput = routeState.activeInput === 'pickup' || routeState.activeInput === 'drop'
+    ? routeState.activeInput
+    : 'drop';
+  const isParcelFlow = routeState.flow === 'parcel' || String(routeState.returnTo || '').includes('/parcel/details');
   const savedLocation = getSavedLocation();
   const savedPickupLabel = String(savedLocation?.address || '').trim();
   const savedPickupCoords = getSavedLocationCoords();
@@ -156,8 +160,8 @@ const SelectLocation = () => {
   const [pickupCoords, setPickupCoords] = useState(() => routeState.pickupCoords || savedPickupCoords || getCoords(routeState.pickup || savedPickupLabel || 'Pipaliyahana, Indore'));
   const [dropCoords, setDropCoords] = useState(() => routeState.dropCoords || null);
   const [stops, setStops] = useState(() => routeState.stops || []);          // array of stop strings
-  const [activeInput, setActiveInput] = useState('drop'); // 'pickup' | 'drop' | stopIdx
-  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [activeInput, setActiveInput] = useState(routeActiveInput); // 'pickup' | 'drop' | stopIdx
+  const [showMapPicker, setShowMapPicker] = useState(Boolean(routeState.openMapPicker));
   const [mapCenter, setMapCenter] = useState(INDIA_CENTER);
   const [pickedAddress, setPickedAddress] = useState('Loading address...');
   const [isGeocoding, setIsGeocoding] = useState(false);
@@ -179,6 +183,7 @@ const SelectLocation = () => {
   const { isLoaded, loadError } = useAppGoogleMapsLoader();
   const navigate = useNavigate();
   const routePrefix = window.location.pathname.startsWith('/taxi/user') ? '/taxi/user' : '';
+  const parcelReturnPath = routeState.returnTo || `${routePrefix}/parcel/details`;
 
   // All known locations â€” filtered live as user types
   const allResults = [
@@ -556,16 +561,64 @@ const SelectLocation = () => {
     });
   }, [localSearchResults, remoteResults]);
 
+  const getMapStartCoord = () => {
+    const activeCoords = activeInput === 'drop' ? dropCoords : pickupCoords;
+
+    if (Array.isArray(activeCoords) && activeCoords.length === 2) {
+      return { lat: activeCoords[1], lng: activeCoords[0] };
+    }
+
+    if (activeInput === 'drop' && Array.isArray(pickupCoords) && pickupCoords.length === 2) {
+      return { lat: pickupCoords[1], lng: pickupCoords[0] };
+    }
+
+    if (Array.isArray(pickupCoords) && pickupCoords.length === 2) {
+      return { lat: pickupCoords[1], lng: pickupCoords[0] };
+    }
+
+    return INDIA_CENTER;
+  };
+
   const showMapToast = () => {
-    // Reset map center to pickup or current location before opening
-    const startCoord = Array.isArray(pickupCoords) && pickupCoords.length === 2
-      ? { lat: pickupCoords[1], lng: pickupCoords[0] }
-      : INDIA_CENTER;
-    
+    const startCoord = getMapStartCoord();
+    const seedAddress = activeInput === 'drop' ? drop : pickup;
+
     setMapCenter(startCoord);
     lastCenterRef.current = startCoord;
+    setPickedAddress(String(seedAddress || '').trim() || 'Loading address...');
     setShowMapPicker(true);
   };
+
+  useEffect(() => {
+    if (!showMapPicker) {
+      return;
+    }
+
+    const startCoord = getMapStartCoord();
+    const seedAddress = activeInput === 'drop' ? drop : pickup;
+    setMapCenter(startCoord);
+    lastCenterRef.current = startCoord;
+    setPickedAddress(String(seedAddress || '').trim() || 'Loading address...');
+  }, [showMapPicker, activeInput, pickupCoords, dropCoords, pickup, drop]);
+
+  useEffect(() => {
+    if (!showMapPicker || !window.google?.maps?.Geocoder) {
+      return;
+    }
+
+    const startCoord = getMapStartCoord();
+    const geocoder = new window.google.maps.Geocoder();
+
+    setIsGeocoding(true);
+    geocoder.geocode({ location: startCoord }, (results, status) => {
+      setIsGeocoding(false);
+      if (status === 'OK' && results?.[0]?.formatted_address) {
+        setPickedAddress(results[0].formatted_address);
+        return;
+      }
+      setPickedAddress(`${startCoord.lat.toFixed(5)}, ${startCoord.lng.toFixed(5)}`);
+    });
+  }, [showMapPicker, activeInput, pickupCoords, dropCoords]);
 
   const handleMapIdle = () => {
     if (!mapInstanceRef.current || !window.google) return;
@@ -624,6 +677,22 @@ const SelectLocation = () => {
     const resolvedPickupCoords = pickupCoords || await resolveCoords(finalPickup);
     const resolvedDropCoords = optionalDropCoords || dropCoords || await resolveCoords(finalDrop);
 
+    if (isParcelFlow) {
+      navigate(parcelReturnPath, {
+        state: {
+          ...routeState,
+          pickup: finalPickup,
+          drop: finalDrop,
+          pickupCoords: resolvedPickupCoords,
+          dropCoords: resolvedDropCoords,
+          activeInput: 'drop',
+          editPickup: false,
+          openMapPicker: false,
+        },
+      });
+      return;
+    }
+
     if (!validateZoneSelection(resolvedPickupCoords) || !validateZoneSelection(resolvedDropCoords)) {
       window.alert('Please choose pickup and drop locations inside the active service zone.');
       return;
@@ -647,6 +716,52 @@ const SelectLocation = () => {
     });
   };
 
+  const returnParcelSelection = (targetInput, address, coords) => {
+    navigate(parcelReturnPath, {
+      state: {
+        ...routeState,
+        pickup: targetInput === 'pickup' ? address : pickup,
+        drop: targetInput === 'drop' ? address : drop,
+        pickupCoords: targetInput === 'pickup' ? coords : pickupCoords,
+        dropCoords: targetInput === 'drop' ? coords : dropCoords,
+        activeInput: targetInput,
+        editPickup: targetInput === 'pickup',
+        openMapPicker: false,
+      },
+    });
+  };
+
+  const handleParcelBack = (keepMapPicker = false) => {
+    navigate(parcelReturnPath, {
+      state: {
+        ...routeState,
+        pickup,
+        drop,
+        pickupCoords,
+        dropCoords,
+        activeInput,
+        editPickup: activeInput === 'pickup',
+        openMapPicker: keepMapPicker,
+      },
+    });
+  };
+
+  const handleScreenBack = () => {
+    if (isParcelFlow) {
+      handleParcelBack(false);
+      return;
+    }
+    navigate(-1);
+  };
+
+  const handleMapBack = () => {
+    if (isParcelFlow) {
+      handleParcelBack(false);
+      return;
+    }
+    setShowMapPicker(false);
+  };
+
   const handleConfirmMapLocation = () => {
     const finalAddress = pickedAddress;
     const selectedCoords = [lastCenterRef.current.lng, lastCenterRef.current.lat];
@@ -657,6 +772,10 @@ const SelectLocation = () => {
     }
 
     if (activeInput === 'pickup') {
+      if (isParcelFlow) {
+        returnParcelSelection('pickup', finalAddress, selectedCoords);
+        return;
+      }
       setPickup(finalAddress);
       setPickupCoords(selectedCoords);
       saveLocation({
@@ -666,6 +785,10 @@ const SelectLocation = () => {
       });
       setActiveInput('drop');
     } else if (activeInput === 'drop') {
+      if (isParcelFlow) {
+        returnParcelSelection('drop', finalAddress, selectedCoords);
+        return;
+      }
       setDrop(finalAddress);
       setDropCoords(selectedCoords);
       // Auto-navigate if it's the destination
@@ -688,6 +811,10 @@ const SelectLocation = () => {
           if (status === 'OK' && results[0]) {
             const addr = results[0].formatted_address;
             const coords = [longitude, latitude];
+            if (isParcelFlow) {
+              returnParcelSelection(activeInput, addr, coords);
+              return;
+            }
             if (activeInput === 'drop') {
               setDrop(addr);
               setDropCoords(coords);
@@ -698,6 +825,10 @@ const SelectLocation = () => {
           } else {
             const raw = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
             const coords = [longitude, latitude];
+            if (isParcelFlow) {
+              returnParcelSelection(activeInput, raw, coords);
+              return;
+            }
             if (activeInput === 'drop') {
               setDrop(raw);
               setDropCoords(coords);
@@ -748,6 +879,10 @@ const SelectLocation = () => {
     resetAutocompleteSessionToken();
 
     if (activeInput === 'pickup') {
+      if (isParcelFlow) {
+        returnParcelSelection('pickup', finalTitle, resolvedCoords);
+        return;
+      }
       setPickup(finalTitle);
       setPickupCoords(resolvedCoords);
       saveLocation({
@@ -757,6 +892,10 @@ const SelectLocation = () => {
       });
       setActiveInput('drop');
     } else if (activeInput === 'drop') {
+      if (isParcelFlow) {
+        returnParcelSelection('drop', finalTitle, resolvedCoords);
+        return;
+      }
       setDrop(finalTitle);
       setDropCoords(resolvedCoords);
       handleConfirmNavigate(finalTitle, resolvedCoords);
@@ -788,14 +927,14 @@ const SelectLocation = () => {
             <div className="absolute top-0 left-0 right-0 z-20 px-5 pt-10 pb-4 bg-gradient-to-b from-white via-white/80 to-transparent">
                <div className="flex items-center gap-3">
                   <button 
-                    onClick={() => setShowMapPicker(false)}
+                    onClick={handleMapBack}
                     className="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center border border-slate-100 active:scale-95 transition-all"
                   >
                     <ArrowLeft size={20} className="text-slate-900" strokeWidth={2.5} />
                   </button>
-                  <div className="flex-1 bg-white rounded-2xl shadow-lg border border-slate-100 px-4 py-3">
+                  <div className="min-w-0 flex-1 bg-white rounded-2xl shadow-lg border border-slate-100 px-4 py-3">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Select Point</p>
-                    <p className="text-[14px] font-semibold text-slate-900 truncate leading-tight">
+                    <p className="block w-full text-[14px] font-semibold text-slate-900 truncate leading-tight">
                       {isGeocoding ? 'Locating...' : pickedAddress}
                     </p>
                   </div>
@@ -917,7 +1056,7 @@ const SelectLocation = () => {
       <header className="sticky top-0 z-30">
         <div className="bg-white/70 backdrop-blur-md border-b border-white/70 shadow-[0_10px_20px_rgba(15,23,42,0.05)]">
           <div className="px-5 py-4 flex items-center gap-3">
-            <button onClick={() => navigate(-1)} className="p-2 -ml-2 active:scale-95 transition-all rounded-full">
+            <button onClick={handleScreenBack} className="p-2 -ml-2 active:scale-95 transition-all rounded-full">
               <ArrowLeft size={22} className="text-slate-900" strokeWidth={3} />
             </button>
             <div className="min-w-0">
