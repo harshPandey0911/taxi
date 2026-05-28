@@ -25,10 +25,43 @@ const hasBrowserSupport = () =>
   'serviceWorker' in navigator &&
   typeof Notification !== 'undefined';
 
-const isNativeContainer = () =>
-  typeof window !== 'undefined' && Boolean(window.__isRydon24WebView);
+const isNativeContainer = () => {
+  if (typeof window === 'undefined') {
+    return false;
+  }
 
-const getPushPlatform = () => 'web';
+  // Primary flag set by main.jsx WebView detection.
+  if (window.__isRydon24WebView) {
+    return true;
+  }
+
+  // Fallback: detect Flutter / native bridge globals independently in case
+  // main.jsx detection missed this WebView variant.
+  if (
+    typeof window.flutter_inappwebview !== 'undefined' ||
+    typeof window.Flutter !== 'undefined' ||
+    typeof window.__rydon24_native !== 'undefined' ||
+    typeof window.AndroidBridge !== 'undefined' ||
+    typeof window.Android !== 'undefined'
+  ) {
+    window.__isRydon24WebView = true;
+    return true;
+  }
+
+  return false;
+};
+
+const getPushPlatform = () => {
+  if (typeof navigator !== 'undefined') {
+    const ua = String(navigator.userAgent || '');
+    // When inside a mobile WebView or mobile browser, the token should be
+    // registered as 'mobile' so the backend stores it in fcmTokenMobile.
+    if (/Android|iPhone|iPad|iPod/i.test(ua) && window.__isRydon24WebView) {
+      return 'mobile';
+    }
+  }
+  return 'web';
+};
 
 const getRoleFromPathname = () => {
   if (typeof window === 'undefined') {

@@ -2,7 +2,28 @@
 // from hiding UPI intent options.
 try {
   const ua = navigator.userAgent;
-  if (/; wv\)/i.test(ua) || /Version\/[\d.]+/i.test(ua)) {
+
+  // Detect WebView containers — covers standard Android WebView markers, Flutter WebView
+  // globals, native bridge interfaces, and heuristic mobile-UA-without-real-browser signals.
+  const hasClassicWebViewMarker = /; wv\)/i.test(ua) || /Version\/[\d.]+/i.test(ua);
+  const hasFlutterBridge = typeof window.flutter_inappwebview !== 'undefined'
+    || typeof window.Flutter !== 'undefined'
+    || typeof window.__rydon24_native !== 'undefined'
+    || typeof window.AndroidBridge !== 'undefined'
+    || typeof window.Android !== 'undefined';
+  const isMobileUaWithoutBrowser = /Android.*Mobile/i.test(ua)
+    && !/\bChrome\/[\d.]+\b.*\bSafari\/[\d.]+\b/.test(ua);
+  const isStandaloneMode = typeof window.matchMedia === 'function'
+    && window.matchMedia('(display-mode: standalone)').matches
+    && /Android|iPhone|iPad/i.test(ua);
+
+  const isWebView = hasClassicWebViewMarker
+    || hasFlutterBridge
+    || isMobileUaWithoutBrowser
+    || isStandaloneMode
+    || window.__isRydon24WebView === true;
+
+  if (isWebView) {
     window.__isRydon24WebView = true;
     const spoofedUa = ua
       .replace(/; wv\)/g, '')
@@ -22,7 +43,7 @@ try {
       configurable: true,
     });
 
-    console.info('[UA Spoofing] Successfully removed WebView identifiers to enable UPI apps.');
+    console.info('[UA Spoofing] WebView detected, removed identifiers to enable UPI apps.');
   }
 } catch (e) {
   console.error('[UA Spoofing] Failed to override userAgent property:', e);
