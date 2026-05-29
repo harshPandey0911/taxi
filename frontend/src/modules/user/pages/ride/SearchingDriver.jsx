@@ -626,6 +626,7 @@ const SearchingDriver = () => {
           serviceType: routeState.serviceType || 'ride',
           intercity: routeState.intercity || undefined,
           promo_code: routeState.promo_code || '',
+          zone_id: routeState.zone_id || routeState.zoneId || '',
           service_location_id: routeState.service_location_id || routeState.serviceLocationId || '',
           transport_type: routeState.transport_type || routeState.transportType || routeState.vehicle?.transportType || 'taxi',
           bookingMode: routeState.bookingMode || 'normal',

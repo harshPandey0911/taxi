@@ -144,6 +144,20 @@ const isPointInAnyZone = (point, zonePaths) => {
   return zonePaths.some((path) => isPointInPolygon(point, path));
 };
 
+const findMatchingZone = (coords, zones = []) => {
+  if (!Array.isArray(coords) || coords.length !== 2 || !Array.isArray(zones) || !zones.length) {
+    return null;
+  }
+
+  const [lng, lat] = coords;
+  const point = { lat: Number(lat), lng: Number(lng) };
+
+  return zones.find((zone) => {
+    const zonePath = normalizeZonePath(zone);
+    return zonePath.length >= 3 && isPointInPolygon(point, zonePath);
+  }) || null;
+};
+
 const SelectLocation = () => {
   const location = useLocation();
   const routeState = location.state || {};
@@ -446,19 +460,7 @@ const SelectLocation = () => {
   };
 
   const query = getQuery();
-  const currentZone = useMemo(() => {
-    if (!Array.isArray(pickupCoords) || pickupCoords.length !== 2 || !zones.length) {
-      return null;
-    }
-
-    const [lng, lat] = pickupCoords;
-    const point = { lat: Number(lat), lng: Number(lng) };
-
-    return zones.find((zone) => {
-      const zonePath = normalizeZonePath(zone);
-      return zonePath.length >= 3 && isPointInPolygon(point, zonePath);
-    }) || null;
-  }, [pickupCoords, zones]);
+  const currentZone = useMemo(() => findMatchingZone(pickupCoords, zones), [pickupCoords, zones]);
 
   const popularSuggestions = useMemo(() => {
     const currentZoneId = String(getZoneId(currentZone));
@@ -704,6 +706,10 @@ const SelectLocation = () => {
       lon: resolvedPickupCoords[0],
     });
 
+    const matchedPickupZone = findMatchingZone(resolvedPickupCoords, zones);
+    const nextServiceLocationId = getZoneServiceLocationId(matchedPickupZone) || serviceLocationId;
+    const nextZoneId = getZoneId(matchedPickupZone);
+
     navigate(`${routePrefix}/ride/select-vehicle`, {
       state: {
         pickup: finalPickup,
@@ -711,7 +717,8 @@ const SelectLocation = () => {
         stops: stops.filter(s => s.trim().length > 0),
         pickupCoords: resolvedPickupCoords,
         dropCoords: resolvedDropCoords,
-        service_location_id: serviceLocationId,
+        service_location_id: nextServiceLocationId,
+        zone_id: nextZoneId,
       },
     });
   };

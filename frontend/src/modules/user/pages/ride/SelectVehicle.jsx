@@ -565,6 +565,8 @@ const getZoneServiceLocationId = (zone) => normalizeId(
   || '',
 );
 
+const getZoneId = (zone) => normalizeId(zone?._id || zone?.id || '');
+
 const isZoneActive = (zone) => zone?.active !== false && Number(zone?.status ?? 1) !== 0 && String(zone?.status || '').toLowerCase() !== 'inactive';
 
 const toZonePoint = (point) => {
@@ -635,6 +637,16 @@ const getRuleServiceLocationId = (rule) => normalizeId(
   || '',
 );
 
+const getRuleZoneId = (rule) => normalizeId(
+  rule?.zone_id?._id
+  || rule?.zone_id?.id
+  || rule?.zone_id
+  || rule?.zone?._id
+  || rule?.zone?.id
+  || rule?.zone
+  || '',
+);
+
 const sortPricingRules = (rules = []) => (
   [...rules].sort((first, second) => {
     const firstUpdatedAt = new Date(first?.updatedAt || first?.createdAt || 0).getTime();
@@ -657,8 +669,9 @@ const matchesTransportType = (rule, transportType) => {
     || normalizedRuleTransport === 'both';
 };
 
-const findBestPricingRule = ({ rules, vehicleTypeId, serviceLocationId, transportType }) => {
+const findBestPricingRule = ({ rules, vehicleTypeId, zoneId, serviceLocationId, transportType }) => {
   const normalizedVehicleTypeId = normalizeId(vehicleTypeId);
+  const normalizedZoneId = normalizeId(zoneId);
   const normalizedServiceLocationId = normalizeId(serviceLocationId);
   const normalizedTransportType = String(transportType || 'taxi').trim().toLowerCase() || 'taxi';
 
@@ -672,6 +685,24 @@ const findBestPricingRule = ({ rules, vehicleTypeId, serviceLocationId, transpor
   }
 
   const exactTransportMatch = (rule) => String(rule?.transport_type || 'taxi').trim().toLowerCase() === normalizedTransportType;
+  const exactZone = candidates.find((rule) => (
+    normalizedZoneId
+    && getRuleZoneId(rule) === normalizedZoneId
+    && exactTransportMatch(rule)
+  ));
+
+  if (exactZone) {
+    return exactZone;
+  }
+
+  const exactZoneAnyTransport = candidates.find((rule) => (
+    normalizedZoneId && getRuleZoneId(rule) === normalizedZoneId
+  ));
+
+  if (exactZoneAnyTransport) {
+    return exactZoneAnyTransport;
+  }
+
   const exactServiceLocation = candidates.find((rule) => (
     normalizedServiceLocationId
     && getRuleServiceLocationId(rule) === normalizedServiceLocationId
@@ -1021,10 +1052,13 @@ const SelectVehicle = () => {
     [routeState.stops],
   );
   const routeServiceLocationId = routeState.service_location_id || routeState.serviceLocationId || '';
+  const routeZoneId = routeState.zone_id || routeState.zoneId || '';
   const [resolvedServiceLocationId, setResolvedServiceLocationId] = useState(routeServiceLocationId);
-  const [isResolvingServiceLocation, setIsResolvingServiceLocation] = useState(!routeServiceLocationId);
+  const [resolvedZoneId, setResolvedZoneId] = useState(routeZoneId);
+  const [isResolvingServiceLocation, setIsResolvingServiceLocation] = useState(!(routeServiceLocationId && routeZoneId));
   const [hasLoadedAvailability, setHasLoadedAvailability] = useState(false);
   const serviceLocationId = resolvedServiceLocationId || routeServiceLocationId || '';
+  const zoneId = resolvedZoneId || routeZoneId || '';
   const routePrefix = location.pathname.startsWith('/taxi/user') ? '/taxi/user' : '';
   const pickupPosition = useMemo(() => toLatLng(pickupCoords), [pickupCoords]);
   const dropPosition = useMemo(() => toLatLng(dropCoords, null), [dropCoords]);
@@ -1034,14 +1068,15 @@ const SelectVehicle = () => {
 
   useEffect(() => {
     setResolvedServiceLocationId(routeServiceLocationId);
-    setIsResolvingServiceLocation(!routeServiceLocationId);
-  }, [routeServiceLocationId]);
+    setResolvedZoneId(routeZoneId);
+    setIsResolvingServiceLocation(!(routeServiceLocationId && routeZoneId));
+  }, [routeServiceLocationId, routeZoneId]);
 
   useEffect(() => {
     let active = true;
 
     const resolveServiceLocationFromPickup = async () => {
-      if (routeServiceLocationId) {
+      if (routeServiceLocationId && routeZoneId) {
         if (active) {
           setIsResolvingServiceLocation(false);
         }
@@ -1078,13 +1113,18 @@ const SelectVehicle = () => {
             return rightUpdatedAt - leftUpdatedAt;
           })[0]?.zone;
 
+        const nextZoneId = getZoneId(matchedZone);
         const nextServiceLocationId = getZoneServiceLocationId(matchedZone);
+        if (nextZoneId) {
+          setResolvedZoneId(nextZoneId);
+        }
         if (nextServiceLocationId) {
           setResolvedServiceLocationId(nextServiceLocationId);
         }
       } catch {
         if (active) {
           setResolvedServiceLocationId('');
+          setResolvedZoneId('');
         }
       } finally {
         if (active) {
@@ -1098,7 +1138,7 @@ const SelectVehicle = () => {
     return () => {
       active = false;
     };
-  }, [pickupCoords, routeServiceLocationId]);
+  }, [pickupCoords, routeServiceLocationId, routeZoneId]);
 
   const handleScroll = () => {
     if (!scrollRef.current) return;
@@ -1277,6 +1317,7 @@ const SelectVehicle = () => {
         const pricingRule = findBestPricingRule({
           rules: pricingRules,
           vehicleTypeId: vehicle.vehicleTypeId,
+          zoneId,
           serviceLocationId,
           transportType: resolveRideTransportType(
             routeState.transport_type,
@@ -1303,7 +1344,7 @@ const SelectVehicle = () => {
           maxBidSteps: dynamicMaxBidSteps,
         };
       }),
-    [pricingRules, serviceLocationId, tripMetrics.distanceMeters, tripMetrics.durationMinutes, vehicles],
+    [pricingRules, serviceLocationId, tripMetrics.distanceMeters, tripMetrics.durationMinutes, vehicles, zoneId],
   );
 
   const isFarePending = isResolvingTripMetrics || isLoadingPricingRules;
@@ -1773,6 +1814,8 @@ const SelectVehicle = () => {
         pickupCoords,
         dropCoords,
         stops,
+        service_location_id: serviceLocationId,
+        zone_id: zoneId,
       },
     });
   };
@@ -1793,6 +1836,7 @@ const SelectVehicle = () => {
         pickupCoords,
         dropCoords,
         stops,
+        zone_id: zoneId,
         service_location_id: serviceLocationId,
         transport_type: resolvedTransportType,
         vehicle: selectedVehicle,

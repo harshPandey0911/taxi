@@ -706,27 +706,49 @@ export const normalizeAllowedRidePaymentMethods = (paymentTypes = []) => {
   return unique.length ? unique : ['cash', 'online'];
 };
 
-export const resolveSetPriceForRide = async ({ serviceLocationId = null, transportType = 'taxi', vehicleTypeId = null }) => {
+export const resolveSetPriceForRide = async ({ zoneId = null, serviceLocationId = null, transportType = 'taxi', vehicleTypeId = null }) => {
   if (!vehicleTypeId) {
     return null;
   }
 
   const normalizedTransportType = String(transportType || 'taxi').trim().toLowerCase() || 'taxi';
   const filters = [
-    {
-      vehicle_type: vehicleTypeId,
-      active: 1,
-      status: 'active',
-      ...(serviceLocationId ? { service_location_id: serviceLocationId } : {}),
-      transport_type: normalizedTransportType,
-    },
-    {
-      vehicle_type: vehicleTypeId,
-      active: 1,
-      status: 'active',
-      ...(serviceLocationId ? { service_location_id: serviceLocationId } : {}),
-      transport_type: 'both',
-    },
+    ...(zoneId
+      ? [
+          {
+            vehicle_type: vehicleTypeId,
+            active: 1,
+            status: 'active',
+            zone_id: zoneId,
+            transport_type: normalizedTransportType,
+          },
+          {
+            vehicle_type: vehicleTypeId,
+            active: 1,
+            status: 'active',
+            zone_id: zoneId,
+            transport_type: 'both',
+          },
+        ]
+      : []),
+    ...(serviceLocationId
+      ? [
+          {
+            vehicle_type: vehicleTypeId,
+            active: 1,
+            status: 'active',
+            service_location_id: serviceLocationId,
+            transport_type: normalizedTransportType,
+          },
+          {
+            vehicle_type: vehicleTypeId,
+            active: 1,
+            status: 'active',
+            service_location_id: serviceLocationId,
+            transport_type: 'both',
+          },
+        ]
+      : []),
     {
       vehicle_type: vehicleTypeId,
       active: 1,
@@ -751,8 +773,8 @@ export const resolveSetPriceForRide = async ({ serviceLocationId = null, transpo
   return null;
 };
 
-export const getAllowedRidePaymentMethodsForPricing = async ({ serviceLocationId = null, transportType = 'taxi', vehicleTypeId = null }) => {
-  const pricingRule = await resolveSetPriceForRide({ serviceLocationId, transportType, vehicleTypeId });
+export const getAllowedRidePaymentMethodsForPricing = async ({ zoneId = null, serviceLocationId = null, transportType = 'taxi', vehicleTypeId = null }) => {
+  const pricingRule = await resolveSetPriceForRide({ zoneId, serviceLocationId, transportType, vehicleTypeId });
 
   return {
     pricingRule,
@@ -846,6 +868,7 @@ export const createRideRecord = async ({
   parcel,
   intercity,
   promo_code,
+  zone_id,
   service_location_id,
   transport_type,
   scheduledAt,
@@ -883,11 +906,16 @@ export const createRideRecord = async ({
     vehicleIconUrl || primaryVehicle?.map_icon || primaryVehicle?.icon || primaryVehicle?.image || '',
   ).trim();
   const normalizedTransportType = normalizeRideTransportType(transport_type);
+  const resolvedZoneId =
+    zone_id && mongoose.Types.ObjectId.isValid(zone_id)
+      ? new mongoose.Types.ObjectId(zone_id)
+      : null;
   const resolvedServiceLocationId =
     service_location_id && mongoose.Types.ObjectId.isValid(service_location_id)
       ? new mongoose.Types.ObjectId(service_location_id)
       : null;
   const { pricingRule, allowedPaymentMethods } = await getAllowedRidePaymentMethodsForPricing({
+    zoneId: resolvedZoneId,
     serviceLocationId: resolvedServiceLocationId,
     transportType: normalizedTransportType,
     vehicleTypeId: primaryVehicleTypeId,
