@@ -65,6 +65,8 @@ const ZoneManagement = ({ mode: initialMode = "list" }) => {
   const circleListenersRef = useRef([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('English');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Map & Drawing States
   const [boundaryMode, setBoundaryMode] = useState('polygon');
@@ -148,6 +150,23 @@ const ZoneManagement = ({ mode: initialMode = "list" }) => {
     if (!query) return zones;
     return zones.filter(z => (z.name || z.zone_name || '').toLowerCase().includes(query));
   }, [zones, searchTerm]);
+
+  const totalZonePages = Math.max(1, Math.ceil(filteredZones.length / pageSize));
+
+  const paginatedZones = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredZones.slice(start, start + pageSize);
+  }, [filteredZones, currentPage, pageSize]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, pageSize]);
+
+  useEffect(() => {
+    if (currentPage > totalZonePages) {
+      setCurrentPage(totalZonePages);
+    }
+  }, [currentPage, totalZonePages]);
 
   const fitMapToPaths = (paths) => {
     if (!mapRef.current || !window.google || !Array.isArray(paths) || paths.length === 0) {
@@ -516,9 +535,9 @@ const ZoneManagement = ({ mode: initialMode = "list" }) => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {filteredZones.map((zone, idx) => (
+                      {paginatedZones.map((zone, idx) => (
                         <tr key={zone._id || zone.id} className="hover:bg-gray-50/50 transition-colors group">
-                          <td className="px-6 py-4 whitespace-nowrap text-xs font-bold text-gray-400">{(idx + 1).toString().padStart(2, '0')}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-xs font-bold text-gray-400">{(((currentPage - 1) * pageSize) + idx + 1).toString().padStart(2, '0')}</td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center gap-3">
                               <div className="w-9 h-9 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100/50 transition-transform group-hover:scale-105">
@@ -560,6 +579,47 @@ const ZoneManagement = ({ mode: initialMode = "list" }) => {
                   </div>
                 )}
               </div>
+
+              {!loading && filteredZones.length > 0 && (
+                <div className="flex flex-col gap-4 border-t border-gray-100 bg-gray-50/40 px-4 py-4 md:flex-row md:items-center md:justify-between">
+                  <div className="flex items-center gap-3 text-xs text-gray-500">
+                    <span className="font-medium">
+                      Showing {Math.min(((currentPage - 1) * pageSize) + 1, filteredZones.length)} to {Math.min(currentPage * pageSize, filteredZones.length)} of {filteredZones.length} zones
+                    </span>
+                    <select
+                      value={pageSize}
+                      onChange={(e) => setPageSize(Number(e.target.value))}
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 outline-none transition-colors focus:border-indigo-500"
+                    >
+                      {[10, 20, 50].map((size) => (
+                        <option key={size} value={size}>{size} / page</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                      disabled={currentPage === 1}
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600 transition-colors hover:border-indigo-200 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Previous
+                    </button>
+                    <span className="rounded-lg bg-white px-3 py-2 text-xs font-bold text-gray-700 border border-gray-200">
+                      Page {currentPage} of {totalZonePages}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((page) => Math.min(totalZonePages, page + 1))}
+                      disabled={currentPage === totalZonePages}
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600 transition-colors hover:border-indigo-200 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </motion.div>
         ) : (
