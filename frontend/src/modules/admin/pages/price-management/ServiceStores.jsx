@@ -114,27 +114,34 @@ const ServiceStores = ({ mode: initialMode = 'list' }) => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [storesRes, zonesRes, locationsRes, rentalVehiclesRes] = await Promise.allSettled([
+      const [storesRes, zonesRes, locationsRes] = await Promise.allSettled([
         adminService.getServiceStores(),
         adminService.getZones(),
         adminService.getServiceLocations(),
-        adminService.getRentalVehicleTypes(),
       ]);
       const nextStores = storesRes.status === 'fulfilled' ? (storesRes.value?.data?.data?.results || storesRes.value?.data?.results || storesRes.value?.results || []) : [];
       const nextZones = zonesRes.status === 'fulfilled' ? (zonesRes.value?.data?.data?.results || zonesRes.value?.data?.results || zonesRes.value?.results || []) : [];
       const nextServiceLocations = locationsRes.status === 'fulfilled' ? (locationsRes.value?.data?.data || locationsRes.value?.data?.results || locationsRes.value?.results || []) : [];
-      const nextRentalVehicles = rentalVehiclesRes.status === 'fulfilled' ? (rentalVehiclesRes.value?.data?.data?.results || rentalVehiclesRes.value?.data?.results || rentalVehiclesRes.value?.results || []) : [];
 
       setStores(nextStores);
       setZones(nextZones);
       setServiceLocations(nextServiceLocations);
-      setRentalVehicles(nextRentalVehicles);
 
       if (id && initialMode === 'edit') {
         const store = nextStores.find(s => String(s._id || s.id) === String(id));
         if (store) handleEdit(store, nextZones, nextServiceLocations);
       }
     } finally { setLoading(false); }
+
+    // Vehicle assignment counts are secondary; don't block the page on them.
+    adminService.getRentalVehicleTypes()
+      .then((response) => {
+        const nextRentalVehicles = response?.data?.data?.results || response?.data?.results || response?.results || [];
+        setRentalVehicles(Array.isArray(nextRentalVehicles) ? nextRentalVehicles : []);
+      })
+      .catch(() => {
+        setRentalVehicles([]);
+      });
   };
 
   useEffect(() => { fetchData(); }, []);

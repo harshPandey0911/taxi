@@ -9,6 +9,91 @@ const api = axios.create({
   },
 });
 
+const compatibleResponseCache = new WeakMap();
+
+const isCompatibleResponseCandidate = (value) => {
+  if (!value || (typeof value !== 'object' && typeof value !== 'function')) {
+    return false;
+  }
+
+  if (typeof Blob !== 'undefined' && value instanceof Blob) {
+    return false;
+  }
+
+  if (typeof ArrayBuffer !== 'undefined' && value instanceof ArrayBuffer) {
+    return false;
+  }
+
+  if (typeof FormData !== 'undefined' && value instanceof FormData) {
+    return false;
+  }
+
+  if (value instanceof Date) {
+    return false;
+  }
+
+  return Array.isArray(value) || Object.prototype.toString.call(value) === '[object Object]';
+};
+
+const createCompatibleResponseView = (payload) => {
+  if (!isCompatibleResponseCandidate(payload)) {
+    return payload;
+  }
+
+  if (compatibleResponseCache.has(payload)) {
+    return compatibleResponseCache.get(payload);
+  }
+
+  const proxy = new Proxy(payload, {
+    get(target, prop, receiver) {
+      if (prop === '__raw') {
+        return target;
+      }
+
+      if (prop === 'data') {
+        const nestedData = target?.data;
+        if (nestedData === undefined || nestedData === target) {
+          return receiver;
+        }
+        return createCompatibleResponseView(nestedData);
+      }
+
+      const directValue = Reflect.get(target, prop, receiver);
+      if (directValue !== undefined) {
+        return createCompatibleResponseView(directValue);
+      }
+
+      const nestedData = target?.data;
+      if (nestedData && (Array.isArray(nestedData) || Object.prototype.toString.call(nestedData) === '[object Object]')) {
+        if (prop in nestedData) {
+          return createCompatibleResponseView(nestedData[prop]);
+        }
+
+        if (prop === 'results' && Array.isArray(nestedData)) {
+          return createCompatibleResponseView(nestedData);
+        }
+      }
+
+      return undefined;
+    },
+    has(target, prop) {
+      if (prop in target) {
+        return true;
+      }
+
+      const nestedData = target?.data;
+      return Boolean(
+        nestedData &&
+        (Array.isArray(nestedData) || Object.prototype.toString.call(nestedData) === '[object Object]') &&
+        prop in nestedData
+      );
+    },
+  });
+
+  compatibleResponseCache.set(payload, proxy);
+  return proxy;
+};
+
 const DEDUPED_GET_TTL_MS = 2500;
 const dedupedGetRequests = new Map();
 const recentDedupedGetResponses = new Map();
@@ -294,7 +379,7 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => {
     // Pro-Level: Many APIs return data in data.data or data.result, you can flatten it here
-    return response.data;
+    return createCompatibleResponseView(response.data);
   },
   (error) => {
     if (error.response) {
