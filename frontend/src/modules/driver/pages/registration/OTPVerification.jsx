@@ -209,12 +209,12 @@ const OTPVerification = () => {
 
             const response = await verifyDriverOtp({ registrationId, phone, otp: otp.join('') });
             const payload = unwrap(response);
-            const nextState = saveDriverRegistrationSession({
+            saveDriverRegistrationSession({
                 ...session,
                 otpVerified: true,
                 otpSession: payload?.session || null,
             });
-            navigate(`${routePrefix}/step-personal`, { state: nextState });
+            navigate(`${routePrefix}/step-personal`);
         } catch (err) {
             setError(err?.message || 'Invalid code');
         } finally {
@@ -284,7 +284,7 @@ const OTPVerification = () => {
                     <header className="space-y-6">
                         <motion.button
                             whileTap={{ scale: 0.9 }}
-                            onClick={() => navigate(entryPath, { state: session })}
+                            onClick={() => navigate(entryPath)}
                             className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white border border-slate-100 text-slate-900 shadow-xl shadow-slate-100"
                         >
                             <ArrowLeft size={20} strokeWidth={3} />

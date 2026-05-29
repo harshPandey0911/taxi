@@ -17,10 +17,7 @@ const StepPersonal = () => {
     const routePrefix = location.pathname.startsWith('/taxi/owner')
         ? '/taxi/owner'
         : '/taxi/driver';
-    const session = {
-        ...getStoredDriverRegistrationSession(),
-        ...(location.state || {}),
-    };
+    const session = getStoredDriverRegistrationSession();
     const phone = String(session.phone || '').replace(/\D/g, '').slice(-10);
     const registrationId = session.registrationId || '';
     const role = routePrefix === '/taxi/owner'
@@ -83,7 +80,7 @@ const StepPersonal = () => {
                     ...normalizedFormData,
                 });
 
-                const nextState = saveDriverRegistrationSession({
+                saveDriverRegistrationSession({
                     ...session,
                     registrationId,
                     phone,
@@ -92,7 +89,7 @@ const StepPersonal = () => {
                     personalSession: response?.data?.session || null,
                 });
 
-                navigate(`${routePrefix}/step-referral`, { state: nextState });
+                navigate(`${routePrefix}/step-referral`);
             } catch (err) {
                 setError(err?.message || 'Unable to save personal details');
             } finally {

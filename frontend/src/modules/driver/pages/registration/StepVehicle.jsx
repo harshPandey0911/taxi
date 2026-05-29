@@ -118,10 +118,7 @@ const StepVehicle = () => {
     const routePrefix = location.pathname.startsWith('/taxi/owner')
         ? '/taxi/owner'
         : '/taxi/driver';
-    const session = {
-        ...getStoredDriverRegistrationSession(),
-        ...(location.state || {}),
-    };
+    const session = getStoredDriverRegistrationSession();
     const isHandlingHistoryNavigationRef = useRef(false);
     const role = session.role || 'driver';
     const isOwner = role === 'owner';
@@ -188,7 +185,8 @@ const StepVehicle = () => {
         }
 
         isHandlingHistoryNavigationRef.current = true;
-        navigate(`${routePrefix}/step-referral`, { state: buildCurrentSession(), replace: true });
+        buildCurrentSession();
+        navigate(`${routePrefix}/step-referral`, { replace: true });
         return true;
     };
 
@@ -448,14 +446,14 @@ const StepVehicle = () => {
                 customFields: formData.customFields,
             });
 
-            const nextState = saveDriverRegistrationSession({
+            saveDriverRegistrationSession({
                 ...session,
                 ...formData,
                 number: normalizedNumber,
                 vehicleSession: response?.data?.session || null,
             });
 
-            navigate(`${routePrefix}/step-documents`, { state: nextState });
+            navigate(`${routePrefix}/step-documents`);
         } catch (err) {
             setError(err?.message || 'Unable to save vehicle details');
         } finally {

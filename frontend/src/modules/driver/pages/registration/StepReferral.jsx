@@ -14,10 +14,7 @@ const StepReferral = () => {
     const routePrefix = location.pathname.startsWith('/taxi/owner')
         ? '/taxi/owner'
         : '/taxi/driver';
-    const session = {
-        ...getStoredDriverRegistrationSession(),
-        ...(location.state || {}),
-    };
+    const session = getStoredDriverRegistrationSession();
     const phone = String(session.phone || '').replace(/\D/g, '').slice(-10);
     const registrationId = String(session.registrationId || '').trim();
     const [referral, setReferral] = useState(session.referralCode || '');
@@ -48,13 +45,13 @@ const StepReferral = () => {
                 referralCode: skip ? '' : referral,
             });
 
-            const nextState = saveDriverRegistrationSession({
+            saveDriverRegistrationSession({
                 ...session,
                 referralCode: skip ? '' : referral,
                 referralSession: response?.data?.session || null,
             });
 
-            navigate(`${routePrefix}/step-vehicle`, { state: nextState });
+            navigate(`${routePrefix}/step-vehicle`);
         } catch (err) {
             setError(err?.message || 'Unable to save referral code');
         } finally {
@@ -72,7 +69,7 @@ const StepReferral = () => {
                     <div className="flex items-center justify-between">
                          <motion.button
                             whileTap={{ scale: 0.9 }}
-                            onClick={() => navigate(`${routePrefix}/step-personal`, { state: session })}
+                            onClick={() => navigate(`${routePrefix}/step-personal`)}
                             className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white border border-slate-100 text-slate-900 shadow-sm transition-all"
                         >
                             <ArrowLeft size={18} strokeWidth={2.5} />

@@ -276,10 +276,7 @@ const StepDocuments = () => {
   const routePrefix = location.pathname.startsWith('/taxi/owner')
     ? '/taxi/owner'
     : '/taxi/driver';
-  const session = {
-    ...getStoredDriverRegistrationSession(),
-    ...(location.state || {}),
-  };
+  const session = getStoredDriverRegistrationSession();
   const isHandlingHistoryNavigationRef = useRef(false);
   const isMetaInitializedRef = useRef(false);
   const normalizedRole = normalizeSignupRole(session.role);
@@ -378,7 +375,8 @@ const StepDocuments = () => {
     }
 
     isHandlingHistoryNavigationRef.current = true;
-    navigate(`${routePrefix}/step-vehicle`, { state: buildCurrentSession(), replace: true });
+    buildCurrentSession();
+    navigate(`${routePrefix}/step-vehicle`, { replace: true });
     return true;
   };
 
@@ -703,13 +701,7 @@ const StepDocuments = () => {
       });
       clearDriverRegistrationSession();
 
-      navigate(`${routePrefix}/registration-status`, {
-        state: {
-          ...session,
-          documents: docs,
-          completedRegistration: payload || null,
-        },
-      });
+      navigate(`${routePrefix}/registration-status`);
     } catch (submitError) {
       setError(submitError?.message || 'Unable to complete registration');
     } finally {
