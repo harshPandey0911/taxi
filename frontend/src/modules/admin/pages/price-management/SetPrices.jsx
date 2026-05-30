@@ -370,6 +370,37 @@ const SetPrices = ({ mode }) => {
     return (p.zone_name || '').toLowerCase().includes(q) || (p.vehicle_type_name || '').toLowerCase().includes(q);
   });
 
+  const handleDeleteZone = async (prize) => {
+    const zoneId = prize?.zone_id?._id || prize?.zone_id?.id || prize?.zone_id || '';
+    const zoneName = prize?.zone_name || prize?.zone_id?.name || 'this zone';
+
+    if (!zoneId) {
+      alert('Zone id is missing for this pricing row.');
+      return;
+    }
+
+    if (!window.confirm(`Delete zone "${zoneName}"? This will remove the zone itself.`)) {
+      return;
+    }
+
+    try {
+      const response = await adminService.deleteZone(zoneId);
+      if (response?.success) {
+        setPrizes((previous) =>
+          previous.filter((item) => String(item?.zone_id?._id || item?.zone_id?.id || item?.zone_id || '') !== String(zoneId)),
+        );
+        setZones((previous) => previous.filter((zone) => String(zone?._id || zone?.id || '') !== String(zoneId)));
+        fetchInitialData();
+        return;
+      }
+
+      alert(response?.message || 'Failed to delete zone.');
+    } catch (error) {
+      console.error('Delete zone error:', error);
+      alert(error?.response?.data?.message || 'Failed to delete zone.');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#F8F9FD] flex flex-col font-sans">
       <AnimatePresence mode="wait">
@@ -472,6 +503,13 @@ const SetPrices = ({ mode }) => {
                                    className="w-8 h-8 flex items-center justify-center bg-[#EEF2FF] text-[#6366F1] rounded transition-colors hover:bg-indigo-100"
                                  >
                                     <Cone size={14} />
+                                 </button>
+                                 <button
+                                   title="Delete zone"
+                                   onClick={() => handleDeleteZone(prize)}
+                                   className="w-8 h-8 flex items-center justify-center bg-[#FEF2F2] text-[#DC2626] rounded transition-colors hover:bg-red-100"
+                                 >
+                                    <Trash2 size={14} />
                                  </button>
                              </div>
                           </td>
