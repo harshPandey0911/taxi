@@ -73,7 +73,7 @@ const CabHome = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { settings } = useSettings();
-  const showBusService = isEnabledFlag(settings.transportRide?.enable_bus_service);
+  const showBusService = isEnabledFlag(settings?.transportRide?.enable_bus_service);
   const visibleServices = services.filter((service) => showBusService || service.id !== 'bus');
   const routePrefix = location.pathname.startsWith('/taxi/user') ? '/taxi/user' : '';
 
