@@ -70,7 +70,7 @@ function LandingPage() {
         <div className="new-top-bar">
           <div className="new-logo-container">
              <a href="/" className="new-logo">
-               <span style={{color: '#333'}}>Rydon24</span>
+               <span style={{color: '#333'}}>Ninja Truck</span>
              </a>
           </div>
           <div className="new-top-contacts">
@@ -80,7 +80,7 @@ function LandingPage() {
              </div>
              <div className="top-contact-item">
                <Mail size={16} />
-               <span>supportrydon@gmail.com</span>
+               <span>supportninjatruck@gmail.com</span>
              </div>
           </div>
         </div>
@@ -90,7 +90,7 @@ function LandingPage() {
           <div className="new-nav-bg-slant"></div>
           <div className="new-nav-container">
             <a href="/" className="mobile-only-logo">
-               <span>Rydon24</span>
+               <span>Ninja Truck</span>
             </a>
             <nav className={`new-nav-links ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
               <a href="#home" className={`new-nav-link ${activeTab === 'home' ? 'active' : ''}`} onClick={handleRedirect('#home', 'home')}>Home</a>
@@ -116,7 +116,7 @@ function LandingPage() {
           <div className="new-hero-left">
             <span className="new-hero-subtitle">Travel securely with us!</span>
             <h1 className="new-hero-title">Book your taxi from<br/>anywhere today!</h1>
-            <p className="new-hero-desc">Everything your taxi business needs is already here!<br/>Rydon made for taxi service companies!</p>
+            <p className="new-hero-desc">Everything your taxi business needs is already here!<br/>Ninja Truck made for taxi service companies!</p>
             <div className="new-hero-cta-row">
               <button className="new-hero-action-btn" onClick={() => window.open('https://play.google.com/store/apps/details?id=com.rydon24.user', '_blank')}>Book Your Ride</button>
               <button className="new-hero-login-btn" onClick={() => navigate('/login')}>
@@ -266,7 +266,7 @@ function LandingPage() {
             <img src={checkUsOutImg} alt="Check Us Out" style={{ width: '100%', height: '100%', objectCover: 'cover' }} />
           </div>
           <div style={{ flex: '1 1 400px', padding: '60px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <h3 style={{ fontSize: '32px', fontWeight: '800', color: '#1a1a1a', marginBottom: '20px' }}>Join the Rydon24 Community</h3>
+            <h3 style={{ fontSize: '32px', fontWeight: '800', color: '#1a1a1a', marginBottom: '20px' }}>Join the Ninja Truck Community</h3>
             <p style={{ fontSize: '16px', color: '#666', lineHeight: '1.8', marginBottom: '30px' }}>
               Follow us on social media to get the latest updates, exclusive offers, and behind-the-scenes content. 
               Be part of the fastest growing transportation network in the region.
@@ -316,7 +316,7 @@ function LandingPage() {
         <div className="footer-main-content">
           <div className="footer-col-1">
             <a href="/" className="footer-logo">
-               <span style={{color: '#FFB300', fontSize: '2.5rem', fontWeight: 800}}>Rydon</span><span style={{color: '#fff', fontSize: '2.5rem', fontWeight: 800}}>24</span>
+               <span style={{color: '#FFB300', fontSize: '2.5rem', fontWeight: 800}}>Ninja</span><span style={{color: '#fff', fontSize: '2.5rem', fontWeight: 800}}> Truck</span>
             </a>
             <p>We provide the best taxi and ride services in the region. Reliable, fast, and secure rides at your fingertips.</p>
             <p>Our fleet consists of well-maintained vehicles driven by professional drivers to ensure a comfortable journey.</p>
@@ -326,7 +326,7 @@ function LandingPage() {
               <a href="#" className="social-icon">in</a>
               <a href="#" className="social-icon">y</a>
             </div>
-            <div className="footer-website">www.Rydon24.com</div>
+            <div className="footer-website">www.ninjatruck.com</div>
           </div>
           <div className="footer-col-2">
             <h3>Quick Links</h3>
@@ -358,7 +358,7 @@ function LandingPage() {
             <Link to="/terms">Terms & Conditions</Link>
           </div>
           <div className="footer-copyright">
-            Copyright 2026 © All Right Reserved Design by Rydon24
+            Copyright 2026 © All Right Reserved Design by Ninja Truck
           </div>
         </div>
       </footer>

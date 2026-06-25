@@ -2752,13 +2752,7 @@ export const goOnline = async (req, res) => {
   }
 
   const todayKey = new Date().toISOString().slice(0, 10);
-  const hasTodaySelfie =
-    String(existingDriver.onlineSelfie?.forDate || "") === todayKey &&
-    String(existingDriver.onlineSelfie?.imageUrl || "").trim();
-
-  if (!hasTodaySelfie && !String(selfieImageUrl || "").trim()) {
-    throw new ApiError(400, "A selfie is required before going online today");
-  }
+  // Selfie check bypassed
 
   await ensureDriverWalletCanAcceptRide(existingDriver);
   await clearDriverActiveRideIfStale(existingDriver);
