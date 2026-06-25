@@ -187,14 +187,19 @@ const LocationMapSection = () => {
         />
 
         <div className="relative z-10 overflow-hidden rounded-[19px] border border-white/70 bg-white/85">
-          <div className="relative h-[170px] w-full">
+          <div className="relative h-[260px] w-full">
             {!HAS_VALID_GOOGLE_MAPS_KEY && (
-              <div className="flex h-full w-full items-center justify-center px-5 text-center">
-                <div>
-                  <p className="text-[12px] font-semibold text-slate-900">Google Maps key missing</p>
-                  <p className="mt-1 text-[11px] font-medium text-slate-500">Add `VITE_GOOGLE_MAPS_API_KEY` in `frontend/.env`.</p>
-                </div>
-              </div>
+              <iframe
+                title="Rydon24 Live Map"
+                width="100%"
+                height="100%"
+                frameBorder="0"
+                scrolling="no"
+                marginHeight="0"
+                marginWidth="0"
+                src={`https://www.openstreetmap.org/export/embed.html?bbox=${(centerCoords.lon || DEFAULT_CENTER.lon) - 0.008}%2C${(centerCoords.lat || DEFAULT_CENTER.lat) - 0.005}%2C${(centerCoords.lon || DEFAULT_CENTER.lon) + 0.008}%2C${(centerCoords.lat || DEFAULT_CENTER.lat) + 0.005}&layer=mapnik`}
+                style={{ border: 0, borderRadius: '19px' }}
+              />
             )}
 
             {HAS_VALID_GOOGLE_MAPS_KEY && loadError && (

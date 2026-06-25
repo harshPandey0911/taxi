@@ -854,6 +854,7 @@ const AdminLayout = () => {
               { label: 'Vehicle Type', path: '/admin/pricing/vehicle-type', permission: 'vehicle_types.view' },
               { label: 'Set Price', path: '/admin/pricing/set-price', permission: 'set_prices.view' },
               { label: 'Goods Types', path: '/admin/pricing/goods-types', permission: 'goods_types.view' },
+              { label: 'Vehicle Insurance', path: '/admin/pricing/insurance', permission: 'set_prices.view' },
             ],
           },
           {

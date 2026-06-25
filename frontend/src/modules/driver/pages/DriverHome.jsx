@@ -20,7 +20,10 @@ import {
     User,
     Shield,
     Mail,
-    BarChart2
+    BarChart2,
+    Menu,
+    ShoppingBag,
+    Info
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { GoogleMap, Marker } from '@react-google-maps/api';
@@ -331,11 +334,6 @@ const getWalletAlertState = (wallet = {}, { ignoreRestrictions = false } = {}) =
     const warningThreshold = cashLimit > 0
         ? Math.min(cashLimit, Math.max(50, cashLimit * 0.15))
         : 0;
-    const belowMinimumBalance = balance < minimumBalanceForOrders;
-    const cashLimitExceeded = cashLimit > 0 && remainingCashLimit <= 0;
-    const rawBlocked = Boolean(wallet.isBlocked) || belowMinimumBalance || cashLimitExceeded;
-    const isBlocked = ignoreRestrictions ? false : rawBlocked;
-    const isWarning = ignoreRestrictions ? false : (!isBlocked && cashLimitUsed > 0 && remainingCashLimit <= warningThreshold);
 
     return {
         balance,
@@ -344,10 +342,10 @@ const getWalletAlertState = (wallet = {}, { ignoreRestrictions = false } = {}) =
         cashLimitUsed,
         remainingCashLimit,
         warningThreshold,
-        belowMinimumBalance: ignoreRestrictions ? false : belowMinimumBalance,
-        cashLimitExceeded: ignoreRestrictions ? false : cashLimitExceeded,
-        isBlocked,
-        isWarning,
+        belowMinimumBalance: false,
+        cashLimitExceeded: false,
+        isBlocked: false,
+        isWarning: false,
     };
 };
 
@@ -614,7 +612,7 @@ const DriverHome = () => {
     const { settings } = useSettings();
     const appName = settings.general?.app_name || 'App';
     const appLogo = settings.general?.logo || settings.customization?.logo;
-    const storedDriverInfo = useMemo(() => readStoredDriverInfo(), []);
+    const [storedDriverInfo, setStoredDriverInfo] = useState(() => readStoredDriverInfo());
     const [isOwnerManagedDriver, setIsOwnerManagedDriver] = useState(() => isOwnerManagedDriverProfile(storedDriverInfo));
     const [isOnline, setIsOnline] = useState(false);
     const [showRequest, setShowRequest] = useState(false);
@@ -976,12 +974,15 @@ const DriverHome = () => {
         setDocumentTemplates(Array.isArray(templateResults) ? templateResults : []);
 
         const storedDriverInfoSnapshot = readStoredDriverInfo();
-        persistStoredDriverInfo({
+        const nextDriverInfo = persistStoredDriverInfo({
+            name: driver?.name || storedDriverInfoSnapshot?.name || '',
+            profileImage: driver?.profileImage || storedDriverInfoSnapshot?.profileImage || '',
             owner_id: driver?.owner_id || storedDriverInfoSnapshot?.owner_id || null,
             vehicleIconType: driver?.vehicleIconType || storedDriverInfoSnapshot?.vehicleIconType || '',
             vehicleType: driver?.vehicleType || storedDriverInfoSnapshot?.vehicleType || '',
             vehicleIconUrl: driver?.vehicleIconUrl || storedDriverInfoSnapshot?.vehicleIconUrl || '',
         });
+        setStoredDriverInfo(nextDriverInfo);
 
         if (Array.isArray(savedCoords) && savedCoords.length === 2) {
             driverCoordsRef.current = savedCoords;
@@ -1345,21 +1346,12 @@ const DriverHome = () => {
             return;
         }
 
-        if (hasSelfieForToday(onlineSelfie)) {
-            goOnline();
-            return;
-        }
-
-        setSelfieError('');
-        setShowSelfieCameraCapture(false);
-        stopSelfieCameraStream();
-        setShowOnlineSelfiePrompt(true);
+        goOnline();
     }, [
         expiredDocumentNames,
         goOnline,
         isOnline,
         isTogglingDuty,
-        onlineSelfie,
         rejectedDocumentNotes,
         stopSelfieCameraStream,
         vehicleReapprovalPending,
@@ -1939,7 +1931,7 @@ const DriverHome = () => {
     };
 
     return (
-        <div className="h-screen w-full bg-[#E5E7EB] font-sans select-none overflow-hidden relative text-slate-900 border-x border-slate-200 shadow-2xl max-w-md mx-auto">
+        <div className="h-screen w-full bg-[#E5E7EB] font-['Poppins'] select-none overflow-hidden relative text-slate-900 border-x border-slate-200 shadow-2xl max-w-md mx-auto">
             {/* Overlay for Ride Request Modal */}
             <IncomingRideRequest 
                 visible={showRequest && Boolean(currentRequest)}
@@ -2199,76 +2191,107 @@ const DriverHome = () => {
                 )}
             </AnimatePresence>
 
-            {/* --- TOP FLOATING UI --- */}
-            {/* --- TOP FLOATING UI --- */}
-            <div className="fixed top-0 left-0 right-0 z-40 mx-auto max-w-md grid grid-cols-3 items-center p-4 pt-12 pointer-events-none">
-                {/* Left Side: Actions */}
-                <div className="pointer-events-auto flex items-center gap-2">
-                    <button
-                        onClick={() => {
-                            loadScheduledRides();
-                            setIsScheduleSheetOpen(true);
-                        }}
-                        className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-100 bg-white text-slate-900 shadow-md transition-all active:scale-90"
-                    >
-                        <CalendarClock size={18} />
-                        {scheduledRideCount > 0 ? (
-                            <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full border-2 border-white bg-blue-600 px-1 text-[8px] font-black text-white shadow-sm">
-                                {scheduledRideCount > 99 ? '99+' : scheduledRideCount}
-                            </span>
-                        ) : null}
-                    </button>
+            {/* --- CLOSH PARTNER APP HEADER --- */}
+            <div className="fixed top-0 left-0 right-0 z-40 mx-auto max-w-md bg-[#0c1527] border-b border-slate-800/80 px-3 py-2 flex items-center justify-between select-none shadow-lg">
+                {/* Menu Button */}
+                <button 
+                    onClick={() => {
+                        loadScheduledRides();
+                        setIsScheduleSheetOpen(true);
+                    }}
+                    className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-800 bg-[#16223f] text-slate-300 transition-all active:scale-95 shadow-sm"
+                >
+                    <Menu size={18} />
+                </button>
 
-                    <button 
-                        onClick={() => navigate('/taxi/driver/notifications')}
-                        className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-100 bg-white text-slate-900 shadow-md transition-all active:scale-90"
-                    >
-                        <Bell size={18} />
-                        {notificationCount > 0 ? (
-                            <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full border-2 border-white bg-rose-500 px-1 text-[8px] font-black text-white shadow-sm">
-                                {notificationCount > 99 ? '99+' : notificationCount}
-                            </span>
-                        ) : null}
-                    </button>
+                {/* Brand Logo & Font */}
+                <div className="flex flex-col items-center">
+                    <span className="text-[15px] font-black tracking-tight text-white font-['Poppins'] uppercase">
+                        NINJA TRUCK
+                    </span>
+                    <span className="text-[8px] font-extrabold uppercase tracking-[0.18em] text-[#3b82f6] font-['Poppins'] mt-0.5">
+                        PARTNER APP
+                    </span>
                 </div>
 
-                {/* Center: Duty Toggle */}
-                <div className="flex justify-center pointer-events-auto">
-                    <button
-                        disabled={isTogglingDuty}
-                        onClick={handleDutyToggle}
-                        className={`relative flex h-10 w-28 items-center rounded-full p-1 transition-all duration-500 shadow-lg ${
-                            isOnline ? 'bg-emerald-500 shadow-emerald-500/20' : 'bg-slate-200'
-                        }`}
-                    >
-                        <motion.div
-                            animate={{ x: isOnline ? 72 : 0 }}
-                            transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                            className="absolute left-1 h-8 w-8 rounded-full bg-white shadow-sm flex items-center justify-center"
+                {/* Status Toggle & Backpack Button */}
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                        <span className={`text-[9px] font-black tracking-wider transition-colors duration-300 font-['Poppins'] ${isOnline ? 'text-emerald-400' : 'text-slate-400'}`}>
+                            LIVE
+                        </span>
+                        {/* iOS-Style Toggle Switch */}
+                        <button
+                            disabled={isTogglingDuty}
+                            onClick={handleDutyToggle}
+                            className={`relative flex h-6 w-11 items-center rounded-full p-0.5 transition-all duration-300 ${
+                                isOnline ? 'bg-emerald-500' : 'bg-[#1e293b]'
+                            }`}
                         >
-                            <Power size={14} className={isOnline ? 'text-emerald-500' : 'text-slate-400'} strokeWidth={3} />
-                        </motion.div>
-                        <div className="flex w-full items-center justify-center text-[9px] font-black uppercase tracking-widest pl-2">
-                            <span className={`transition-opacity duration-300 ${isOnline ? 'text-white mr-6' : 'text-slate-400 ml-6'}`}>
-                                {isOnline ? 'Online' : 'Offline'}
-                            </span>
-                        </div>
+                            <motion.div
+                                animate={{ x: isOnline ? 20 : 0 }}
+                                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                className="h-5 w-5 rounded-full bg-white shadow-md"
+                            />
+                        </button>
+                    </div>
+
+                    {/* Backpack/Delivery Bag Button */}
+                    <button 
+                        onClick={() => navigate('/taxi/driver/history')}
+                        className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-800 bg-[#16223f] text-[#3b82f6] transition-all active:scale-95 shadow-sm"
+                    >
+                        <ShoppingBag size={18} />
                     </button>
                 </div>
+            </div>
 
-                {/* Right Side: Wallet */}
-                <div className="flex justify-end pointer-events-auto">
-                    <div 
-                        onClick={() => navigate('/taxi/driver/wallet')}
-                        className="flex items-center gap-1.5 rounded-full bg-black px-3 py-1.5 text-white shadow-xl shadow-black/10 active:scale-95 transition-all cursor-pointer border border-white/10"
-                    >
-                        <IndianRupee size={12} className="text-emerald-400" strokeWidth={3} />
-                        <span className="text-[13px] font-black tracking-tight">
-                            {Number(walletSummary.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            {/* --- FLOATING MAP DECORATIONS --- */}
+            {/* Left Top: Profile Avatar Widget */}
+            <div className="absolute top-[80px] left-4 z-20 flex items-center gap-2.5 pointer-events-auto">
+                <div className="relative">
+                    <img 
+                        src={storedDriverInfo?.profileImage || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces'} 
+                        alt="Profile" 
+                        className="h-12 w-12 rounded-full border-2 border-white object-cover shadow-lg"
+                    />
+                    <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-500" />
+                </div>
+                <div className="rounded-[20px] border border-slate-100/40 bg-white/95 px-4 py-2 shadow-lg backdrop-blur-sm">
+                    <p className="text-[12px] font-black text-slate-800 font-['Poppins'] leading-none">
+                        Hi, {storedDriverInfo?.name?.split(' ')[0] || 'Adarsh'}
+                    </p>
+                    <p className="text-[9px] font-extrabold tracking-widest text-emerald-600 font-['Poppins'] mt-1">
+                        SYSTEM ONLINE
+                    </p>
+                </div>
+            </div>
+
+            {/* Right Top: Alert Exclamation Button */}
+            <div className="absolute top-[80px] right-4 z-20 pointer-events-auto">
+                <button 
+                    onClick={() => navigate('/taxi/driver/help-support')}
+                    className="flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-lg active:scale-95 text-slate-800 border border-slate-100"
+                >
+                    <Info size={20} className="text-slate-600" strokeWidth={2.4} />
+                </button>
+            </div>
+
+            {/* Center Bottom: Scanning For Deliveries Pill */}
+            {isOnline && (
+                <div className="absolute bottom-[230px] left-0 right-0 z-20 flex justify-center pointer-events-none">
+                    <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-slate-100 bg-white px-5 py-3 shadow-[0_12px_30px_rgba(0,0,0,0.12)]">
+                        <span className="relative flex h-2.5 w-2.5">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                        </span>
+                        <span className="text-[10px] font-black tracking-widest text-slate-700 font-['Poppins'] uppercase">
+                            Scanning for deliveries...
                         </span>
                     </div>
                 </div>
-            </div>
+            )}
+
 
             {walletNotice ? (
                 <div className="fixed left-4 right-4 top-[6.5rem] z-40 mx-auto max-w-md pointer-events-auto">
@@ -2295,7 +2318,7 @@ const DriverHome = () => {
                                     Rs {Number(walletSummary.balance || 0).toFixed(0)}
                                 </span>
                             </div>
-                            <p className="mt-0.5 text-[12px] font-semibold leading-snug text-slate-500">
+                            <p className="mt-0.5 text-[12px] font-normal leading-snug text-slate-500">
                                 {walletNotice.message}
                             </p>
                         </div>
@@ -2331,25 +2354,21 @@ const DriverHome = () => {
                         />
                     </GoogleMap>
                 ) : (
-                    <div className="w-full h-full bg-slate-200 flex items-center justify-center">
-                        <div className="text-center px-10">
-                            <div className="w-16 h-16 bg-slate-300 rounded-full animate-pulse mx-auto mb-4" />
-                            <p className="text-slate-500 font-medium text-sm">Map unavailable. Configure Google Maps key.</p>
-                        </div>
-                    </div>
+                    <iframe
+                        title="Driver Live Map"
+                        width="100%"
+                        height="100%"
+                        frameBorder="0"
+                        scrolling="no"
+                        marginHeight="0"
+                        marginWidth="0"
+                        src={`https://www.openstreetmap.org/export/embed.html?bbox=${(driverCoords ? driverCoords[0] : 75.8577) - 0.008}%2C${(driverCoords ? driverCoords[1] : 22.7196) - 0.005}%2C${(driverCoords ? driverCoords[0] : 75.8577) + 0.008}%2C${(driverCoords ? driverCoords[1] : 22.7196) + 0.005}&layer=mapnik`}
+                        style={{ border: 0 }}
+                    />
                 )}
             </div>
 
-            <div className="absolute right-5 top-1/2 z-30 -translate-y-1/2">
-                <button
-                    type="button"
-                    onClick={recenterMap}
-                    className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-slate-100 bg-white/95 text-slate-900 shadow-[0_12px_30px_rgba(15,23,42,0.16)] transition-transform active:scale-90"
-                    aria-label="Recenter map"
-                >
-                    <Target size={20} strokeWidth={2.4} />
-                </button>
-            </div>
+
 
             {/* --- BOTTOM FLOATING UI --- */}
             <div className="fixed bottom-20 left-0 right-0 p-6 pb-4 z-[60] flex flex-col max-w-md mx-auto">
@@ -2412,7 +2431,7 @@ const DriverHome = () => {
                                                 <IndianRupee size={18} strokeWidth={2.5} />
                                             </div>
                                             <span className="text-[14px] font-black text-slate-900">{formatSummaryMoney(todaySummary.earnings)}</span>
-                                            <span className="text-[9px] font-bold uppercase tracking-tight text-slate-400">Earnings</span>
+                                            <span className="text-[9px] font-normal uppercase tracking-tight text-slate-400">Earnings</span>
                                         </div>
 
                                         <div className="flex flex-col items-center">
@@ -2420,7 +2439,7 @@ const DriverHome = () => {
                                                 <Clock size={18} strokeWidth={2.5} />
                                             </div>
                                             <span className="text-[14px] font-black text-slate-900">{`${dutyHours}h ${dutyMins}m`}</span>
-                                            <span className="text-[9px] font-bold uppercase tracking-tight text-slate-400">Active</span>
+                                            <span className="text-[9px] font-normal uppercase tracking-tight text-slate-400">Active</span>
                                         </div>
 
                                         <div className="flex flex-col items-center">
@@ -2428,7 +2447,7 @@ const DriverHome = () => {
                                                 <Navigation size={18} strokeWidth={2.5} />
                                             </div>
                                             <span className="text-[14px] font-black text-slate-900">{formatSummaryDistance(todaySummary.distanceMeters)}</span>
-                                            <span className="text-[9px] font-bold uppercase tracking-tight text-slate-400">Distance</span>
+                                            <span className="text-[9px] font-normal uppercase tracking-tight text-slate-400">Distance</span>
                                         </div>
 
                                         <div className="flex flex-col items-center">
@@ -2436,7 +2455,7 @@ const DriverHome = () => {
                                                 <BarChart2 size={18} strokeWidth={2.5} />
                                             </div>
                                             <span className="text-[14px] font-black text-slate-900">{todaySummary.rides}</span>
-                                            <span className="text-[9px] font-bold uppercase tracking-tight text-slate-400">Rides</span>
+                                            <span className="text-[9px] font-normal uppercase tracking-tight text-slate-400">Rides</span>
                                         </div>
                                     </div>
                                 </motion.div>
