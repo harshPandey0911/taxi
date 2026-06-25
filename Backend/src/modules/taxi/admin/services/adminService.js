@@ -3820,6 +3820,59 @@ export const getUserById = async (id) => {
   };
 };
 
+const ensureDefaultDriverDocuments = async () => {
+  const count = await DriverNeededDocument.countDocuments({ template_type: 'document' });
+  if (count > 0) {
+    return;
+  }
+
+  const defaults = [
+    {
+      template_type: 'document',
+      name: 'Aadhar Card',
+      slug: 'aadhar-card',
+      account_type: 'both',
+      image_type: 'front_back',
+      is_required: true,
+      active: true,
+      front_key: 'aadharFront',
+      back_key: 'aadharBack',
+      key: 'aadharCard',
+    },
+    {
+      template_type: 'document',
+      name: 'Driving License',
+      slug: 'driving-license',
+      account_type: 'both',
+      image_type: 'front',
+      is_required: true,
+      active: true,
+      front_key: 'drivingLicenseFront',
+      key: 'drivingLicense',
+      has_expiry_date: true,
+      has_identify_number: true,
+      identify_number_key: 'drivingLicenseNo',
+    },
+    {
+      template_type: 'document',
+      name: 'Vehicle Registration (RC)',
+      slug: 'vehicle-rc',
+      account_type: 'both',
+      image_type: 'front_back',
+      is_required: true,
+      active: true,
+      front_key: 'rcFront',
+      back_key: 'rcBack',
+      key: 'vehicleRC',
+      has_expiry_date: true,
+      has_identify_number: true,
+      identify_number_key: 'rcNo',
+    }
+  ];
+
+  await DriverNeededDocument.insertMany(defaults, { ordered: false });
+};
+
 const ensureDefaultDriverVehicleFields = async () => {
   const count = await DriverNeededDocument.countDocuments({ template_type: 'vehicle_field' });
   if (count > 0) {
@@ -8833,6 +8886,7 @@ export const getRentalTrackingDashboard = async () => {
 
   export const listDriverNeededDocuments = async ({ activeOnly = false, includeFields = false, templateType = 'document' } = {}) => {
     await cleanupLegacySeededDriverNeededDocuments();
+    await ensureDefaultDriverDocuments();
     await ensureDefaultDriverVehicleFields();
 
     const normalizedTemplateType = String(templateType || 'document').trim().toLowerCase();
@@ -9954,13 +10008,56 @@ export const buildDriverDutyReport = async (query = {}) => {
     const safeLimit = Number(query.limit) || 10;
     const start = (safePage - 1) * safeLimit;
 
-    const [modules, total] = await Promise.all([
+    let total = await TaxiAppModule.countDocuments();
+    if (total === 0) {
+      const defaults = [
+        {
+          name: 'Daily Ride',
+          transport_type: 'taxi',
+          service_type: 'normal',
+          order_by: 1,
+          short_description: 'Daily commute made simple',
+          mobile_menu_icon: 'https://cdn-icons-png.flaticon.com/512/3082/3082349.png',
+          active: 1
+        },
+        {
+          name: 'Parcel Delivery',
+          transport_type: 'delivery',
+          service_type: 'normal',
+          order_by: 2,
+          short_description: 'Instant pick and drop service',
+          mobile_menu_icon: 'https://cdn-icons-png.flaticon.com/512/649/649733.png',
+          active: 1
+        },
+        {
+          name: 'Intercity Bidding',
+          transport_type: 'taxi',
+          service_type: 'outstation',
+          order_by: 3,
+          short_description: 'Travel outstation with bids',
+          mobile_menu_icon: 'https://cdn-icons-png.flaticon.com/512/820/820158.png',
+          active: 1
+        },
+        {
+          name: 'Rentals',
+          transport_type: 'taxi',
+          service_type: 'rental',
+          order_by: 4,
+          short_description: 'Chauffeur-driven hourly rentals',
+          mobile_menu_icon: 'https://cdn-icons-png.flaticon.com/512/3066/3066264.png',
+          active: 1
+        }
+      ];
+      await TaxiAppModule.insertMany(defaults);
+      total = await TaxiAppModule.countDocuments();
+    }
+
+    const [modules] = await Promise.all([
       TaxiAppModule.find()
         .sort({ order_by: 1, createdAt: -1 })
         .skip(start)
         .limit(safeLimit)
         .lean(),
-      TaxiAppModule.countDocuments(),
     ]);
 
     const results = modules.map(m => ({

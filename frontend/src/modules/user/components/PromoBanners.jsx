@@ -74,44 +74,6 @@ const PromoBanners = () => {
           <PromoCard key={`${String(card.title || '').trim() || 'promo'}-${index}`} {...card} onNavigate={navigate} />
         ))}
       </div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, ease: 'easeOut' }}
-        className="relative overflow-hidden rounded-2xl border border-white/80 bg-gradient-to-br from-slate-900 to-slate-800 p-4 shadow-[0_18px_44px_rgba(15,23,42,0.12)]"
-      >
-        <div className="absolute inset-0 bg-[radial-gradient(240px_160px_at_20%_25%,rgba(56,189,248,0.16),transparent_60%)]" aria-hidden="true" />
-        <div className="absolute inset-0 bg-[radial-gradient(260px_180px_at_85%_85%,rgba(251,191,36,0.10),transparent_62%)]" aria-hidden="true" />
-
-        <div className="relative z-10 flex min-h-[168px] items-end justify-between gap-4">
-          <div className="max-w-[62%]">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/85">
-              <Sparkles size={12} strokeWidth={2.5} className="text-cyan-200" />
-              Savings
-            </div>
-
-            <h3 className="mt-3 text-[20px] font-black leading-tight tracking-tight text-white">
-              Better savings on your next ride.
-            </h3>
-            <p className="mt-1.5 text-[11px] font-bold leading-relaxed text-white/70">Book quickly and save more.</p>
-
-            <motion.button
-              type="button"
-              whileTap={{ scale: 0.98 }}
-              onClick={() => navigate('/taxi/user/ride/select-location')}
-              className="mt-4 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-[12px] font-black text-slate-900 shadow-lg shadow-black/15"
-            >
-              Ride Now
-              <ArrowRight size={14} strokeWidth={3} />
-            </motion.button>
-          </div>
-
-          <div className="pointer-events-none w-[140px] shrink-0 opacity-95">
-            <img src="/ride_now_banner.png" alt="Promo" className="w-full drop-shadow-2xl" />
-          </div>
-        </div>
-      </motion.div>
     </div>
   );
 };
