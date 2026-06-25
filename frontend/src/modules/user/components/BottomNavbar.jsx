@@ -22,7 +22,7 @@ const BottomNavbar = () => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { settings, modules, loading, hasBootstrapSettings } = useSettings();
-  const showBusService = isEnabledFlag(settings.transportRide?.enable_bus_service);
+  const showBusService = isEnabledFlag(settings?.transportRide?.enable_bus_service);
   const busModule = (modules || []).find(m => m.service_type === 'bus' || m.name.toLowerCase() === 'bus');
   const dynamicBusIcon = busModule?.mobile_menu_icon ? normalizeAssetUrl(busModule.mobile_menu_icon) : busIcon;
   const showNavSkeleton = loading && !hasBootstrapSettings;

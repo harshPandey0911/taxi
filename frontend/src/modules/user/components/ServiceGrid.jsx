@@ -27,8 +27,16 @@ const ServiceTile = ({ icon, label, description, path, accentClass, loading }) =
       className="flex h-full min-h-[112px] w-full items-center justify-center transition-transform"
     >
       <div className="flex h-[108px] w-[92%] flex-col items-center justify-center gap-1.5 px-1 py-1">
-        <div className={`flex h-[82px] w-[82px] items-center justify-center rounded-[18px] ${accentClass || 'bg-gray-50'}`}>
-          <img src={icon} alt={label} className="h-[70px] w-[70px] object-contain drop-shadow-sm" />
+        <div className={`flex h-[82px] w-[82px] items-center justify-center rounded-[18px] overflow-hidden ${accentClass || 'bg-gray-50'}`}>
+          <img 
+            src={icon} 
+            alt={label} 
+            className="h-full w-full object-contain p-1.5 rounded-[14px] drop-shadow-sm transition-transform duration-300 hover:scale-105" 
+            style={{ 
+              mixBlendMode: 'multiply',
+              filter: 'contrast(1.08) brightness(1.04)'
+            }}
+          />
         </div>
 
         <div className="flex flex-col items-center gap-0.5 text-center">
@@ -96,6 +104,7 @@ const ServiceGrid = () => {
   const { modules, loading: settingsLoading } = useSettings();
 
   useEffect(() => {
+    console.log('[DEBUG] ServiceGrid modules received:', modules, 'settingsLoading:', settingsLoading);
     if (settingsLoading) return;
     
     // Only show active modules

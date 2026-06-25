@@ -73,7 +73,7 @@ body {
     
     background-color: var(--driver-bg-soft);
     color: #0F172A;
-    font-family: 'Outfit', sans-serif;
+    font-family: 'Poppins', sans-serif;
 }
 
 /* Localize Tailwind's color mapping for the driver module */
@@ -81,6 +81,14 @@ body {
 .driver-theme .bg-primary { background-color: var(--color-primary); }
 .driver-theme .border-primary { border-color: var(--color-primary); }
 .driver-theme .shadow-premium { --tw-shadow: 0 10px 40px -10px rgba(0,0,0,0.15); box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow); }
+
+/* Sentence case styling for driver panel text elements */
+.driver-theme .uppercase:not(input):not(textarea):not(.tracking-widest) {
+    text-transform: lowercase !important;
+}
+.driver-theme .uppercase:not(input):not(textarea):not(.tracking-widest)::first-letter {
+    text-transform: uppercase !important;
+}
 
 .glass-morphism {
     background: rgba(255, 255, 255, 0.7);

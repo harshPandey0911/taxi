@@ -1586,12 +1586,13 @@ export const getTransportTypes = asyncHandler(async (_req, res) =>
 );
 
 export const getAppBootstrap = asyncHandler(async (_req, res) => {
-  const [modules, general, transportRide, customize, paymentGateway] = await Promise.all([
-    adminService.listAppModules(),
+  const [modules, general, transportRide, customize, paymentGateway, bidRide] = await Promise.all([
+    adminService.listAppModules({ limit: 100 }),
     adminService.getGeneralSettings('general'),
     adminService.getGeneralSettings('transport-ride'),
     adminService.getGeneralSettings('customize'),
     getPublicActivePaymentGateway(),
+    adminService.getGeneralSettings('bid-ride').catch(() => ({ settings: {} })),
   ]);
 
   ok(res, {
@@ -1601,6 +1602,7 @@ export const getAppBootstrap = asyncHandler(async (_req, res) => {
       transportRide: transportRide.settings || {},
       customization: customize.settings || {},
       paymentGateway: paymentGateway?.activeGateway || null,
+      bidRide: bidRide.settings || {},
     }
   });
 });

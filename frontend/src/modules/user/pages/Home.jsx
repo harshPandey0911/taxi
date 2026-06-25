@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { CalendarClock, ChevronRight, Clock3, MapPin, ShieldCheck, User } from 'lucide-react';
+import { CalendarClock, ChevronRight, Clock3, MapPin, Search, ShieldCheck, User } from 'lucide-react';
 import HeaderGreeting from '../components/HeaderGreeting';
 import ServiceGrid from '../components/ServiceGrid';
 import LocationMapSection from '../components/LocationMapSection';
@@ -837,10 +837,31 @@ const Home = () => {
           );
         })()}
 
-        <ServiceGrid />
         {showDeferredSections ? (
           <>
             <LocationMapSection />
+            
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.05, ease: 'easeOut' }}
+              className="mx-5"
+            >
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.99 }}
+                onClick={() => navigate('/ride/select-location')}
+                className="flex w-full items-center gap-2 rounded-[18px] border border-white/80 bg-white/95 px-3.5 py-3 text-left shadow-[0_12px_26px_rgba(15,23,42,0.06)]"
+              >
+                <Search size={16} className="text-slate-500" strokeWidth={2.5} />
+                <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-slate-500">
+                  Search destination
+                </span>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-600">Go</span>
+              </motion.button>
+            </motion.div>
+
+            <ServiceGrid />
             <ActionsSection />
             <PromoBanners />
             <ExplorerSection />
@@ -864,7 +885,7 @@ const Home = () => {
             <div className="relative z-10 flex h-full items-start justify-center px-6 pt-10 text-left">
               <div className="flex max-w-[340px] flex-col items-start px-2 py-2 -translate-x-4">
                 <div className="text-[48px] font-semibold tracking-[-0.03em] text-[#FFB300] drop-shadow-[0_10px_30px_rgba(255,179,0,0.4)] leading-none">
-                  Rydon <span className="text-slate-900">24</span>
+                  Ninja <span className="text-slate-900">Truck</span>
                 </div>
                 <div className="mt-2 text-[14px] font-sans italic font-medium tracking-[0.04em] text-slate-800">
                   Your Trusted Journey Partner

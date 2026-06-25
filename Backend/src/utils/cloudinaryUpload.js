@@ -1,5 +1,7 @@
 import crypto from 'node:crypto';
 import { Blob } from 'node:buffer';
+import fs from 'node:fs';
+import path from 'node:path';
 import { env } from '../config/env.js';
 import { ApiError } from './ApiError.js';
 
@@ -39,11 +41,40 @@ export const uploadDataUrlToCloudinary = async ({
   publicIdPrefix = 'driver-document',
   publicIdSuffix = '',
 }) => {
+  const { mimeType, base64, extension } = parseDataUrl(dataUrl);
+
   if (!env.cloudinary.cloudName || !env.cloudinary.apiKey || !env.cloudinary.apiSecret) {
-    throw new ApiError(500, 'Cloudinary credentials are not configured');
+    try {
+      const buffer = Buffer.from(base64, 'base64');
+      const uploadDir = path.resolve('uploads');
+      
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      
+      const filename = `${publicIdPrefix}-${Date.now()}${publicIdSuffix ? `-${publicIdSuffix}` : ''}.${extension}`;
+      const filePath = path.join(uploadDir, filename);
+      fs.writeFileSync(filePath, buffer);
+      
+      const localUrl = `http://localhost:${env.port}/uploads/${filename}`;
+      
+      return {
+        secureUrl: localUrl,
+        publicId: filename,
+        resourceType: 'image',
+        format: extension,
+        bytes: buffer.length,
+        width: 800,
+        height: 600,
+        originalFilename: filename,
+        createdAt: new Date().toISOString(),
+        raw: { secure_url: localUrl },
+      };
+    } catch (error) {
+      throw new ApiError(500, `Local image save failed: ${error.message}`);
+    }
   }
 
-  const { mimeType, base64, extension } = parseDataUrl(dataUrl);
   const buffer = Buffer.from(base64, 'base64');
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const publicId = `${publicIdPrefix}-${Date.now()}${publicIdSuffix ? `-${publicIdSuffix}` : ''}`;

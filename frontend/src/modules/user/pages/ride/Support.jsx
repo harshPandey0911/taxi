@@ -36,14 +36,14 @@ const Support = () => {
       <div className="absolute bottom-24 right-[-40px] h-44 w-44 rounded-full bg-blue-100/50 blur-3xl pointer-events-none" />
 
       <header className="relative z-20 sticky top-0">
-        <div className="bg-white/70 backdrop-blur-md border-b border-white/70 shadow-[0_10px_20px_rgba(15,23,42,0.05)]">
+        <div className="bg-[#0c1527] border-b border-slate-800 shadow-[0_10px_20px_rgba(15,23,42,0.05)] text-white">
           <div className="px-5 py-4 flex items-center gap-3">
-            <button onClick={() => navigate(-1)} className="p-2 -ml-2 active:scale-95 transition-all rounded-full">
-              <ArrowLeft size={22} className="text-slate-900" strokeWidth={3} />
+            <button onClick={() => navigate(-1)} className="p-2 -ml-2 active:scale-95 transition-all rounded-full text-white">
+              <ArrowLeft size={22} className="text-white" strokeWidth={3} />
             </button>
-            <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-[0.26em] text-slate-400">Support</p>
-              <h1 className="mt-1 text-[18px] font-black text-slate-900 tracking-tight leading-none truncate">
+            <div className="min-w-0 text-left">
+              <p className="text-[10px] font-black uppercase tracking-[0.26em] text-indigo-300">Support</p>
+              <h1 className="mt-1 text-[18px] font-black text-white tracking-tight leading-none truncate">
                 Help &amp; Support
               </h1>
             </div>

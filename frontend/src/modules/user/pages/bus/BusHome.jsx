@@ -6,7 +6,7 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
-  BusFront,
+  BusFron
   ArrowRightLeft,
   Loader2,
   Route,
@@ -103,7 +103,7 @@ const BusHome = () => {
   const location = useLocation();
   const { settings } = useSettings();
   const routePrefix = useMemo(() => getRoutePrefix(location.pathname), [location.pathname]);
-  const busEnabled = isEnabledFlag(settings.transportRide?.enable_bus_service);
+  const busEnabled = isEnabledFlag(settings?.transportRide?.enable_bus_service);
 
   const [fromCity, setFromCity] = useState('');
   const [toCity, setToCity] = useState('');

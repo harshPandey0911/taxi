@@ -121,6 +121,8 @@ const AddressSettings = lazy(() => import('./modules/user/pages/profile/AddressS
 const BusBookings = lazy(() => import('./modules/user/pages/profile/BusBookings'));
 const BusBookingDetail = lazy(() => import('./modules/user/pages/profile/BusBookingDetail'));
 const UserSubscriptions = lazy(() => import('./modules/user/pages/profile/Subscriptions'));
+const InsurancePortal = lazy(() => import('./modules/user/pages/insurance/InsurancePortal'));
+const AdminInsuranceManagement = lazy(() => import('./modules/admin/pages/insurance/AdminInsuranceManagement'));
 // Driver Module - Common
 import DriverLayout from './modules/driver/components/DriverLayout';
 
@@ -790,6 +792,8 @@ function App() {
                 path="/support/ticket/:id"
                 element={<SupportTicketDetail />}
               />
+              <Route path="/insurance" element={<InsurancePortal />} />
+              <Route path="/user/insurance" element={<InsurancePortal />} />
               </Route>
 
               {/* User Module Routes (Taxi-prefixed aliases to match Driver style) */}
@@ -974,6 +978,7 @@ function App() {
                 path="/taxi/user/support/ticket/:id"
                 element={<SupportTicketDetail />}
               />
+              <Route path="/taxi/user/insurance" element={<InsurancePortal />} />
               </Route>
 
               {/* Driver Module Routes - Centralized under DriverLayout for Theme & Styling */}
@@ -1114,6 +1119,7 @@ function App() {
               <Route path="/admin" element={<AdminLayout />}>
                 <Route index element={<Navigate to="/admin/dashboard" />} />
                 <Route path="dashboard" element={<AdminDashboard />} />
+                <Route path="insurance" element={<AdminInsuranceManagement />} />
                 <Route path="earnings" element={<AdminEarnings />} />
                 <Route path="chat" element={<AdminChat />} />
                 <Route path="trips" element={<AdminTrips />} />
@@ -1539,6 +1545,7 @@ function App() {
                     path="goods-types/edit/:id"
                     element={<AdminGoodsTypes mode="edit" />}
                   />
+                  <Route path="insurance" element={<AdminInsuranceManagement />} />
                 </Route>
                 <Route path="safety" element={<AdminSafetyCenter />} />
                 <Route path="cms" element={<AdminCMSBuilder />} />
