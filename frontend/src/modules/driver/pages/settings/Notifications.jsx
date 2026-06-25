@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import DriverBottomNav from '../../../shared/components/DriverBottomNav';
 import {
   ArrowLeft,
   Bell,
@@ -13,8 +14,11 @@ import {
   ChevronRight,
   Clock3,
   MapPin,
+  Menu,
+  Check,
+  User,
 } from 'lucide-react';
-import { getDriverNotifications, getDriverScheduledRides } from '../../services/registrationService';
+import { getDriverNotifications, getDriverScheduledRides, getCurrentDriver } from '../../services/registrationService';
 import {
   getVisibleDriverNotifications,
   getMergedDriverNotifications,
@@ -25,6 +29,9 @@ import {
 import IncomingRideRequest from '../IncomingRideRequest';
 import toast from 'react-hot-toast';
 import { getScheduledRideCountdown } from '../../utils/scheduledRideTime';
+import api from '../../../../shared/api/axiosInstance';
+
+const unwrapDriver = (response) => response?.data?.data || response?.data || response || null;
 
 const formatNotificationTime = (value) => {
   if (!value) {
@@ -113,7 +120,7 @@ const createScheduledRidePreview = (ride) => ({
 });
 
 const SkeletonCard = () => (
-  <div className="animate-pulse rounded-[20px] bg-white/70 border border-white/80 p-4 flex items-start gap-3">
+  <div className="animate-pulse rounded-[24px] bg-white border border-slate-100 p-4 flex items-start gap-3">
     <div className="w-10 h-10 rounded-[12px] bg-slate-200 shrink-0" />
     <div className="flex-1 space-y-2">
       <div className="h-3 bg-slate-200 rounded-full w-2/3" />
@@ -143,6 +150,56 @@ const DriverNotifications = () => {
   const [hasMoreAlerts, setHasMoreAlerts] = useState(false);
   const [hasMoreSchedule, setHasMoreSchedule] = useState(false);
   const pageSize = 10;
+
+  // Header Driver info & Live Status states
+  const [driver, setDriver] = useState(null);
+  const [isOnline, setIsOnline] = useState(false);
+  const [isTogglingOnline, setIsTogglingOnline] = useState(false);
+
+  useEffect(() => {
+    const fetchDriver = async () => {
+      try {
+        const response = await getCurrentDriver();
+        const nextDriver = unwrapDriver(response);
+        setDriver(nextDriver);
+        setIsOnline(Boolean(nextDriver?.isOnline));
+      } catch (err) {
+        console.error("Failed to load driver details", err);
+      }
+    };
+    fetchDriver();
+  }, []);
+
+  const toggleOnlineStatus = async () => {
+    if (isTogglingOnline) return;
+    setIsTogglingOnline(true);
+    try {
+      if (isOnline) {
+        const response = await api.patch('/drivers/offline');
+        const driverData = unwrapDriver(response);
+        setIsOnline(Boolean(driverData?.isOnline));
+      } else {
+        let coords = [75.8577, 22.7196]; // fallback indore coords
+        if (navigator.geolocation) {
+          try {
+            const pos = await new Promise((resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 6000 });
+            });
+            coords = [pos.coords.longitude, pos.coords.latitude];
+          } catch (err) {
+            console.warn("Geolocation failed, using default indore coords", err);
+          }
+        }
+        const response = await api.patch('/drivers/online', { location: coords });
+        const driverData = unwrapDriver(response);
+        setIsOnline(Boolean(driverData?.isOnline));
+      }
+    } catch (err) {
+      console.error("Failed to toggle online status", err);
+    } finally {
+      setIsTogglingOnline(false);
+    }
+  };
 
   const handleClearAll = async () => {
     if (alertItems.length === 0) return;
@@ -240,8 +297,10 @@ const DriverNotifications = () => {
     [activeTab, alertItems.length, scheduledRides.length],
   );
 
+  const hasProfileImage = Boolean(driver?.profileImage);
+
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#F8FAFC_0%,#F3F4F6_38%,#EEF2F7_100%)] max-w-lg mx-auto font-sans pb-12 relative overflow-hidden">
+    <div className="min-h-screen bg-[#f8fafc] max-w-lg mx-auto font-['Poppins'] pb-32 relative shadow-xl border-x border-slate-100 select-none">
       <IncomingRideRequest
         visible={Boolean(selectedScheduledRide)}
         requestData={selectedScheduledRide}
@@ -250,48 +309,84 @@ const DriverNotifications = () => {
         onDecline={() => setSelectedScheduledRide(null)}
       />
 
-      <div className="absolute -top-16 right-[-40px] h-44 w-44 rounded-full bg-blue-100/60 blur-3xl pointer-events-none" />
-      <div className="absolute top-52 left-[-60px] h-52 w-52 rounded-full bg-slate-100/70 blur-3xl pointer-events-none" />
+      {/* Dark Header Area */}
+      <div className="bg-[#0c1527] text-white pt-4 pb-3 px-5 sticky top-0 z-50 shadow-md">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button className="text-white hover:opacity-85" onClick={() => navigate(-1)}>
+              <ArrowLeft size={22} />
+            </button>
+            <div>
+              <h2 className="text-sm font-black tracking-tight text-white uppercase">NINJA TRUCK</h2>
+              <p className="text-[8px] font-extrabold uppercase tracking-widest text-indigo-300 mt-0.5">PARTNER APP</p>
+            </div>
+          </div>
 
-      <header className="bg-white/90 backdrop-blur-md px-5 pt-10 pb-4 sticky top-0 z-20 border-b border-white/80 shadow-[0_4px_20px_rgba(15,23,42,0.05)]">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate(`${routePrefix}/${routePrefix === '/taxi/owner' ? 'dashboard' : 'home'}`)} className="w-9 h-9 rounded-[12px] border border-white/80 bg-white/90 flex items-center justify-center shadow-sm active:scale-95 transition-all">
-            <ArrowLeft size={18} className="text-slate-900" strokeWidth={2.5} />
-          </button>
-          <div className="flex-1 min-w-0">
-            <p className="text-[9px] font-black uppercase tracking-[0.26em] text-slate-400">Inbox</p>
-            <h1 className="text-[19px] font-black tracking-tight text-slate-900 leading-tight">Notifications</h1>
+          {/* LIVE Toggle status */}
+          <div className="flex items-center gap-2">
+            <span className={`text-[10px] font-black tracking-widest ${isOnline ? 'text-emerald-400' : 'text-slate-400'}`}>LIVE</span>
+            <button
+              onClick={toggleOnlineStatus}
+              disabled={isTogglingOnline}
+              className={`w-12 h-6 rounded-full relative transition-all duration-300 ${isOnline ? 'bg-emerald-500' : 'bg-slate-700'}`}
+            >
+              <motion.div
+                animate={{ x: isOnline ? 26 : 2 }}
+                transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+                className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm"
+              />
+            </button>
           </div>
-          <div className="bg-slate-900 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-sm">
-            {totalCount}
-          </div>
-        </div>
-        <div className="mt-4 flex items-center justify-end gap-2">
+
+          {/* Profile Badge */}
           <button
-            type="button"
-            onClick={() => loadAllData(activeTab === 'alerts' ? alertsPage : schedulePage)}
-            disabled={loading || scheduledLoading}
-            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 active:scale-95 transition-all disabled:opacity-50"
+            onClick={() => navigate(`${routePrefix}/profile`)}
+            className="w-8 h-8 rounded-full border border-white/20 bg-white/10 overflow-hidden flex items-center justify-center text-white transition-all shadow-sm"
           >
-            <RefreshCw size={12} strokeWidth={2.5} className={loading || scheduledLoading ? 'animate-spin' : ''} />
-            Refresh
+            {hasProfileImage ? (
+              <img src={driver?.profileImage} alt="Profile" className="w-full h-full object-cover" />
+            ) : (
+              <User size={16} />
+            )}
           </button>
-          {activeTab === 'alerts' ? (
+        </div>
+      </div>
+
+      <div className="px-5 pt-6 space-y-5">
+        {/* Title and Action Buttons Block */}
+        <div className="flex items-start justify-between">
+          <div className="text-left">
+            <h1 className="text-2xl font-black tracking-tight text-slate-900 leading-none">Notifications</h1>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-1.5">
+              {totalCount} UNREAD
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={handleClearAll}
-              disabled={clearing || loading || alertItems.length === 0}
-              className="inline-flex items-center gap-2 rounded-full border border-rose-100 bg-rose-50 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-rose-500 active:scale-95 transition-all disabled:opacity-50"
+              onClick={() => loadAllData(activeTab === 'alerts' ? alertsPage : schedulePage)}
+              disabled={loading || scheduledLoading}
+              className="w-9 h-9 flex items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 active:scale-95 transition-all disabled:opacity-50"
             >
-              <Trash2 size={12} strokeWidth={2.5} />
-              Clear All
+              <RefreshCw size={14} className={loading || scheduledLoading ? 'animate-spin' : ''} />
             </button>
-          ) : null}
-        </div>
-      </header>
 
-      <div className="px-5 pt-4 space-y-2.5">
-        <div className="grid grid-cols-2 gap-2 rounded-[22px] border border-white/80 bg-white/70 p-1 shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
+            {activeTab === 'alerts' && alertItems.length > 0 && (
+              <button
+                type="button"
+                onClick={handleClearAll}
+                disabled={clearing || loading}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm disabled:opacity-50"
+              >
+                Mark All Read
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Tab Buttons styled inline with the theme */}
+        <div className="grid grid-cols-2 gap-2 rounded-[22px] border border-slate-100 bg-slate-100/60 p-1">
           {[
             { id: 'alerts', label: 'Alerts', count: alertItems.length },
             { id: 'schedule', label: 'Schedule', count: scheduledRides.length },
@@ -305,13 +400,13 @@ const DriverNotifications = () => {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center justify-center gap-2 rounded-[18px] px-3 py-3 text-[11px] font-black uppercase tracking-[0.16em] transition-all ${
                   isActive
-                    ? 'bg-slate-900 text-white shadow-[0_10px_24px_rgba(15,23,42,0.18)]'
+                    ? 'bg-[#0c1527] text-white shadow-[0_8px_16px_rgba(12,21,39,0.15)]'
                     : 'text-slate-500'
                 }`}
               >
                 {tab.id === 'schedule' ? <CalendarClock size={14} strokeWidth={2.4} /> : <Radio size={14} strokeWidth={2.4} />}
                 {tab.label}
-                <span className={`rounded-full px-2 py-0.5 text-[9px] ${isActive ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                <span className={`rounded-full px-2 py-0.5 text-[9px] ${isActive ? 'bg-white/15 text-white' : 'bg-slate-200 text-slate-600 font-extrabold'}`}>
                   {tab.count}
                 </span>
               </button>
@@ -319,182 +414,189 @@ const DriverNotifications = () => {
           })}
         </div>
 
-        <div className="flex items-center justify-between px-1">
-          <p className="text-[10px] font-black uppercase tracking-[0.26em] text-slate-400">
-            {activeTab === 'schedule' ? 'Scheduled Rides' : 'Admin & System Alerts'}
-          </p>
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{totalCount} visible</p>
-        </div>
+        {/* List Content */}
+        <div className="space-y-3">
+          {activeTab === 'alerts' && loading && Array.from({ length: 4 }).map((_, index) => <SkeletonCard key={index} />)}
+          {activeTab === 'schedule' && scheduledLoading && Array.from({ length: 3 }).map((_, index) => <SkeletonCard key={index} />)}
 
-        {activeTab === 'alerts' && loading && Array.from({ length: 4 }).map((_, index) => <SkeletonCard key={index} />)}
-        {activeTab === 'schedule' && scheduledLoading && Array.from({ length: 3 }).map((_, index) => <SkeletonCard key={index} />)}
-
-        {activeTab === 'alerts' && error && !loading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-            <div className="w-16 h-16 bg-white/80 border border-white/80 rounded-3xl flex items-center justify-center">
-              <AlertCircle size={28} className="text-red-400" strokeWidth={2} />
-            </div>
-            <p className="text-[14px] font-black text-slate-700">{error}</p>
-            <button
-              type="button"
-              onClick={() => loadAllData(1)}
-              className="flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-full text-[12px] font-black uppercase tracking-widest active:scale-95 transition-all"
-            >
-              <RefreshCw size={13} strokeWidth={2.5} />
-              Retry
-            </button>
-          </div>
-        ) : null}
-
-        {activeTab === 'schedule' && scheduledError && !scheduledLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-            <div className="w-16 h-16 bg-white/80 border border-white/80 rounded-3xl flex items-center justify-center">
-              <AlertCircle size={28} className="text-red-400" strokeWidth={2} />
-            </div>
-            <p className="text-[14px] font-black text-slate-700">{scheduledError}</p>
-            <button
-              type="button"
-              onClick={() => loadAllData(1)}
-              className="flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-full text-[12px] font-black uppercase tracking-widest active:scale-95 transition-all"
-            >
-              <RefreshCw size={13} strokeWidth={2.5} />
-              Retry
-            </button>
-          </div>
-        ) : null}
-
-        {activeTab === 'alerts' && !loading && !error && alertItems.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-            <div className="w-20 h-20 bg-white/80 border border-white/80 rounded-3xl flex items-center justify-center">
-              <Bell size={36} className="text-slate-300" strokeWidth={1.5} />
-            </div>
-            <div>
-              <p className="text-[16px] font-black text-slate-700">No notifications yet</p>
-              <p className="text-[12px] font-bold text-slate-400 mt-1">Admin and payment notifications will appear here automatically</p>
-            </div>
-          </div>
-        ) : null}
-
-        {activeTab === 'schedule' && !scheduledLoading && !scheduledError && scheduledRides.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-            <div className="w-20 h-20 bg-white/80 border border-white/80 rounded-3xl flex items-center justify-center">
-              <CalendarClock size={34} className="text-slate-300" strokeWidth={1.7} />
-            </div>
-            <div>
-              <p className="text-[16px] font-black text-slate-700">No scheduled rides yet</p>
-              <p className="text-[12px] font-bold text-slate-400 mt-1">Scheduled bookings tied to this driver will show here with pickup, drop, rider info, and time.</p>
-            </div>
-          </div>
-        ) : null}
-
-        <AnimatePresence>
-          {activeTab === 'alerts' && !loading && !error && alertItems.map((notification) => (
-            <motion.div
-              key={notification.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className="relative rounded-[20px] border border-white/80 bg-white p-4 flex items-start gap-3 transition-all shadow-[0_4px_14px_rgba(15,23,42,0.07)]"
-            >
-              <div className="w-10 h-10 rounded-[12px] flex items-center justify-center shrink-0 bg-emerald-50">
-                <Radio size={16} className="text-emerald-500" strokeWidth={2.3} />
+          {activeTab === 'alerts' && error && !loading ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
+              <div className="w-16 h-16 bg-white border border-slate-100 rounded-3xl flex items-center justify-center">
+                <AlertCircle size={28} className="text-red-400" strokeWidth={2} />
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-[13px] leading-tight font-black text-slate-900">{notification.title || 'Notification'}</p>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-[9px] font-bold text-slate-400 mt-0.5">
+              <p className="text-[14px] font-black text-slate-700">{error}</p>
+              <button
+                type="button"
+                onClick={() => loadAllData(1)}
+                className="flex items-center gap-2 bg-[#0c1527] text-white px-6 py-3 rounded-full text-[12px] font-black uppercase tracking-widest active:scale-95 transition-all"
+              >
+                <RefreshCw size={13} strokeWidth={2.5} />
+                Retry
+              </button>
+            </div>
+          ) : null}
+
+          {activeTab === 'schedule' && scheduledError && !scheduledLoading ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
+              <div className="w-16 h-16 bg-white border border-slate-100 rounded-3xl flex items-center justify-center">
+                <AlertCircle size={28} className="text-red-400" strokeWidth={2} />
+              </div>
+              <p className="text-[14px] font-black text-slate-700">{scheduledError}</p>
+              <button
+                type="button"
+                onClick={() => loadAllData(1)}
+                className="flex items-center gap-2 bg-[#0c1527] text-white px-6 py-3 rounded-full text-[12px] font-black uppercase tracking-widest active:scale-95 transition-all"
+              >
+                <RefreshCw size={13} strokeWidth={2.5} />
+                Retry
+              </button>
+            </div>
+          ) : null}
+
+          {activeTab === 'alerts' && !loading && !error && alertItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
+              <div className="w-20 h-20 bg-white border border-slate-100 rounded-[28px] flex items-center justify-center shadow-sm">
+                <Bell size={32} className="text-slate-300" strokeWidth={1.5} />
+              </div>
+              <div>
+                <p className="text-[16px] font-black text-slate-700">No notifications yet</p>
+                <p className="text-[12px] font-normal text-slate-400 mt-1">Admin and payment notifications will appear here automatically</p>
+              </div>
+            </div>
+          ) : null}
+
+          {activeTab === 'schedule' && !scheduledLoading && !scheduledError && scheduledRides.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
+              <div className="w-20 h-20 bg-white border border-slate-100 rounded-[28px] flex items-center justify-center shadow-sm">
+                <CalendarClock size={32} className="text-slate-300" strokeWidth={1.7} />
+              </div>
+              <div>
+                <p className="text-[16px] font-black text-slate-700">No scheduled rides yet</p>
+                <p className="text-[12px] font-normal text-slate-400 mt-1">Scheduled bookings tied to this driver will show here with pickup, drop, rider info, and time.</p>
+              </div>
+            </div>
+          ) : null}
+
+          <AnimatePresence>
+            {activeTab === 'alerts' && !loading && !error && alertItems.map((notification) => (
+              <motion.div
+                key={notification.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                className="relative rounded-[24px] border border-blue-100/80 bg-blue-50/50 p-4 flex items-start justify-between gap-3 transition-all shadow-[0_4px_12px_rgba(37,99,235,0.02)]"
+              >
+                <div className="flex items-start gap-3 flex-1 min-w-0">
+                  <div className="w-10 h-10 rounded-[12px] flex items-center justify-center shrink-0 bg-indigo-50 text-indigo-600">
+                    <Bell size={16} strokeWidth={2.3} />
+                  </div>
+                  
+                  <div className="flex-1 min-w-0 text-left">
+                    <p className="text-[13px] leading-tight font-black text-slate-800">{notification.title || 'Notification'}</p>
+                    <p className="text-[11px] font-normal text-slate-500 mt-1.5 leading-relaxed whitespace-pre-wrap">{notification.body || 'No message'}</p>
+                    
+                    {notification.image ? (
+                      <div className="mt-3 rounded-2xl overflow-hidden border border-slate-100 shadow-sm bg-slate-50">
+                        <img
+                          src={notification.image}
+                          alt="Notification content"
+                          className="w-full h-auto max-h-[180px] object-cover"
+                        />
+                      </div>
+                    ) : null}
+
+                    {notification.serviceLocationName ? (
+                      <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mt-2">
+                        {notification.serviceLocationName}
+                      </p>
+                    ) : null}
+
+                    <p className="text-[10px] font-normal text-slate-400 mt-2">
                       {formatNotificationTime(notification.sentAt)}
-                    </span>
-                    <button
-                      onClick={() => handleRemoveSingle(notification.id)}
-                      className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors"
-                    >
-                      <Trash2 size={13} strokeWidth={2.5} />
-                    </button>
+                    </p>
                   </div>
                 </div>
-                <p className="text-[11px] font-bold text-slate-500 mt-1 leading-relaxed whitespace-pre-wrap">{notification.body || 'No message'}</p>
 
-                {notification.image ? (
-                  <div className="mt-3 rounded-2xl overflow-hidden border border-slate-100 shadow-sm bg-slate-50">
-                    <img
-                      src={notification.image}
-                      alt="Notification content"
-                      className="w-full h-auto max-h-[180px] object-cover"
-                    />
-                  </div>
-                ) : null}
-
-                {notification.serviceLocationName ? (
-                  <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mt-2">
-                    {notification.serviceLocationName}
-                  </p>
-                ) : null}
-              </div>
-            </motion.div>
-          ))}
-
-          {activeTab === 'schedule' && !scheduledLoading && !scheduledError && scheduledRides.map((ride) => (
-            <motion.button
-              key={ride.rideId}
-              type="button"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              onClick={() => setSelectedScheduledRide(createScheduledRidePreview(ride))}
-              className="relative w-full rounded-[20px] border border-white/80 bg-white p-4 text-left transition-all shadow-[0_4px_14px_rgba(15,23,42,0.07)] active:scale-[0.99]"
-            >
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-[12px] flex items-center justify-center shrink-0 bg-blue-50">
-                  <CalendarClock size={16} className="text-blue-600" strokeWidth={2.3} />
+                {/* Right side actions - Check and Trash */}
+                <div className="flex items-center gap-1.5 shrink-0 ml-1">
+                  <button
+                    onClick={() => handleRemoveSingle(notification.id)}
+                    className="w-8 h-8 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-500 hover:text-emerald-500 hover:bg-emerald-50 hover:border-emerald-100 transition-all active:scale-95"
+                  >
+                    <Check size={14} strokeWidth={2.5} />
+                  </button>
+                  
+                  <button
+                    onClick={() => handleRemoveSingle(notification.id)}
+                    className="w-8 h-8 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-rose-500 hover:bg-rose-50 hover:border-rose-100 transition-all active:scale-95"
+                  >
+                    <Trash2 size={14} strokeWidth={2.5} />
+                  </button>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-[13px] leading-tight font-black text-slate-900">
-                        {ride.type === 'parcel' ? 'Scheduled delivery' : ride.type === 'intercity' ? 'Scheduled intercity ride' : 'Scheduled ride'}
-                      </p>
-                      <p className="mt-1 text-[10px] font-black uppercase tracking-[0.18em] text-blue-500">
-                        {formatScheduledDateTime(ride.scheduledAt)}
-                      </p>
-                      <p className="mt-1 text-[11px] font-black text-emerald-600">
-                        {getScheduledRideCountdown(ride.scheduledAt, scheduleNow)}
-                      </p>
-                    </div>
-                    <ChevronRight size={16} className="text-slate-300 shrink-0 mt-0.5" strokeWidth={2.5} />
-                  </div>
+              </motion.div>
+            ))}
 
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2">
-                      <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Fare</p>
-                      <p className="mt-1 text-[13px] font-black text-slate-900">{formatFareLabel(ride.fare || ride.baseFare)}</p>
-                    </div>
-                    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2">
-                      <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Distance</p>
-                      <p className="mt-1 text-[13px] font-black text-slate-900">{formatDistanceLabel(ride.estimatedDistanceMeters)}</p>
-                    </div>
+            {activeTab === 'schedule' && !scheduledLoading && !scheduledError && scheduledRides.map((ride) => (
+              <motion.button
+                key={ride.rideId}
+                type="button"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                onClick={() => setSelectedScheduledRide(createScheduledRidePreview(ride))}
+                className="relative w-full rounded-[24px] border border-blue-100/80 bg-blue-50/50 p-4 text-left transition-all shadow-[0_4px_12px_rgba(37,99,235,0.02)] active:scale-[0.99]"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-[12px] flex items-center justify-center shrink-0 bg-indigo-50 text-indigo-600">
+                    <CalendarClock size={16} strokeWidth={2.3} />
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[13px] leading-tight font-black text-slate-800">
+                          {ride.type === 'parcel' ? 'Scheduled delivery' : ride.type === 'intercity' ? 'Scheduled intercity ride' : 'Scheduled ride'}
+                        </p>
+                        <p className="mt-1 text-[10px] font-black uppercase tracking-[0.18em] text-indigo-500">
+                          {formatScheduledDateTime(ride.scheduledAt)}
+                        </p>
+                        <p className="mt-1 text-[11px] font-black text-emerald-600">
+                          {getScheduledRideCountdown(ride.scheduledAt, scheduleNow)}
+                        </p>
+                      </div>
+                      <ChevronRight size={16} className="text-slate-400 shrink-0 mt-0.5" strokeWidth={2.5} />
+                    </div>
 
-                  <div className="mt-3 space-y-2">
-                    <div className="flex items-start gap-2 text-slate-600">
-                      <Clock3 size={13} className="mt-0.5 shrink-0 text-blue-500" strokeWidth={2.3} />
-                      <p className="text-[11px] font-bold leading-relaxed">{ride.user?.name || 'Customer'}{ride.user?.phone ? ` • ${ride.user.phone}` : ''}</p>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <div className="rounded-2xl border border-slate-100 bg-white px-3 py-2">
+                        <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Fare</p>
+                        <p className="mt-1 text-[13px] font-black text-slate-800">{formatFareLabel(ride.fare || ride.baseFare)}</p>
+                      </div>
+                      <div className="rounded-2xl border border-slate-100 bg-white px-3 py-2">
+                        <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Distance</p>
+                        <p className="mt-1 text-[13px] font-black text-slate-800">{formatDistanceLabel(ride.estimatedDistanceMeters)}</p>
+                      </div>
                     </div>
-                    <div className="flex items-start gap-2 text-slate-600">
-                      <MapPin size={13} className="mt-0.5 shrink-0 text-emerald-500" strokeWidth={2.3} />
-                      <p className="text-[11px] font-bold leading-relaxed line-clamp-1">{ride.pickupAddress || 'Pickup point'}</p>
-                    </div>
-                    <div className="flex items-start gap-2 text-slate-600">
-                      <MapPin size={13} className="mt-0.5 shrink-0 text-orange-500" strokeWidth={2.3} />
-                      <p className="text-[11px] font-bold leading-relaxed line-clamp-1">{ride.dropAddress || 'Drop point'}</p>
+
+                    <div className="mt-3 space-y-2">
+                      <div className="flex items-start gap-2 text-slate-600">
+                        <Clock3 size={13} className="mt-0.5 shrink-0 text-indigo-500" strokeWidth={2.3} />
+                        <p className="text-[11px] font-normal leading-relaxed">{ride.user?.name || 'Customer'}{ride.user?.phone ? ` • ${ride.user.phone}` : ''}</p>
+                      </div>
+                      <div className="flex items-start gap-2 text-slate-600">
+                        <MapPin size={13} className="mt-0.5 shrink-0 text-emerald-500" strokeWidth={2.3} />
+                        <p className="text-[11px] font-normal leading-relaxed line-clamp-1">{ride.pickupAddress || 'Pickup point'}</p>
+                      </div>
+                      <div className="flex items-start gap-2 text-slate-600">
+                        <MapPin size={13} className="mt-0.5 shrink-0 text-orange-500" strokeWidth={2.3} />
+                        <p className="text-[11px] font-normal leading-relaxed line-clamp-1">{ride.dropAddress || 'Drop point'}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </motion.button>
-          ))}
-        </AnimatePresence>
+              </motion.button>
+            ))}
+          </AnimatePresence>
+        </div>
 
         {/* Pagination Controls */}
         {((activeTab === 'alerts' && alertItems.length > 0) || (activeTab === 'schedule' && scheduledRides.length > 0)) && (
@@ -521,6 +623,7 @@ const DriverNotifications = () => {
           </div>
         )}
       </div>
+      <DriverBottomNav />
     </div>
   );
 };
